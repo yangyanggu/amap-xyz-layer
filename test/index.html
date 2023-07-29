@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>测试</title>
+    <script src = 'https://webapi.amap.com/maps?v=2.0&key=6640620be99fa0d010a3b4e812797cd7'></script>
+    <script src="/dist/index.js" ></script>
+    <style type="text/css">
+      .control{
+        margin-top: 10px;
+      }
+      .control button{
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" style="height: 600px;"></div>
+    <div class="control">
+      <button onclick="showSatellite()">显示高德本身卫星地图</button>
+      <button onclick="showGaodeLayer()">自定义高德本身卫星地图</button>
+    </div>
+    <script type="text/javascript">
+      const center = [116.335036, 39.900082]
+      const map = new AMap.Map('app', {
+        center: center,
+        zoom: 10,
+        viewMode: '3D',
+        pitch: 35
+      })
+
+      const layers = [];
+      const satellite = new AMap.TileLayer.Satellite()
+      map.addLayer(satellite)
+      layers.push(satellite)
+
+      const gaodeLayer = new AMap.CustomXyzLayer(map, {
+        url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+        subdomains: ["1", "2", "3", "4"]
+      })
+      layers.push(gaodeLayer)
+
+      function hideAllLayers(){
+        layers.forEach(layer => {
+          layer.hide()
+        })
+      }
+      function showSatellite(){
+        hideAllLayers();
+        satellite.show();
+      }
+
+      function showGaodeLayer(){
+        hideAllLayers();
+        gaodeLayer.show();
+      }
+
+    </script>
+  </body>
+</html>
