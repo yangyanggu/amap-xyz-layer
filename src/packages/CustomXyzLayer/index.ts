@@ -68,14 +68,12 @@ class CustomXyzLayer {
     //存放瓦片号对应的经纬度
     gridCache: Record<string, ResultLngLat> = {}
 
-    //记录渲染时的变换矩阵。
-    //如果瓦片因为网速慢，在渲染完成后才加载过来，可以使用这个矩阵主动更新渲染
-    matrix = null as any;
-
     transformBaidu = new TransformClassBaidu()
 
     a_Pos: GLint | undefined;
     a_TextCoord: GLint | undefined
+
+    mapCallback: any
 
     constructor(map: any, options: XyzLayerOptions) {
         if (!map) {
@@ -90,11 +88,6 @@ class CustomXyzLayer {
         this.customCoords.lngLatsToCoords([
             map.getCenter().toArray()
         ]);
-        //着色器程序
-        this.program;
-
-        //记录当前图层是否在显示
-        this.isLayerShow;
 
         this.layer = new AMap.GLCustomLayer({
             // 图层的层级
@@ -191,30 +184,20 @@ class CustomXyzLayer {
                 this.a_Pos = gl.getAttribLocation(this.program, "a_pos");
                 this.a_TextCoord = gl.getAttribLocation(this.program, 'a_TextCoord');
                 this.isLayerShow = true;
-                map.on('dragging', () => {
+                this.mapCallback = () => {
                     if (this.isLayerShow) {
                         this.update()
                     }
-                })
-                map.on('zoomchange', () => {
-                    if (this.isLayerShow) {
-                        this.update()
-                    }
-                })
-                map.on('rotatechange', () => {
-                    if (this.isLayerShow) {
-                        this.update()
-                    }
-                })
+                }
+                map.on('dragging', this.mapCallback)
+                map.on('zoomchange', this.mapCallback)
+                map.on('rotatechange', this.mapCallback)
                 this.update()
             },
-            render: (gl, state) => {
+            render: (gl) => {
                 const zooms = this.options.zooms as [number, number];
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) return
 
-                //记录变换矩阵，用于瓦片加载后主动绘制
-                // this.matrix = state.viewState.modelMatrix;
-                this.matrix = state.viewState.mvpMatrix;
                 //应用着色程序
                 //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
                 gl.useProgram(this.program);
@@ -597,9 +580,49 @@ class CustomXyzLayer {
         this.layer.hide()
     }
 
+    getzIndex(): number{
+        return this.layer.getzIndex();
+    }
+
+    setzIndex(zIndex: number){
+        this.layer.setzIndex(zIndex)
+    }
+
+    getOpacity(): number {
+        return this.layer.getOpacity()
+    }
+
+    setOpacity(opacity: number){
+        this.layer.setOpacity(opacity);
+    }
+
+    getZooms(): [number, number]{
+        return this.layer.getZooms()
+    }
+
+    setZooms(zooms: [number, number]){
+        this.layer.setZooms(zooms)
+    }
+
+    getMap(){
+        return this.map;
+    }
+
     destroy() {
         this.isLayerShow = false;
-        this.map = null
+        this.map.remove(this.layer);
+        this.map.off('dragging', this.mapCallback);
+        this.map.off('zoomchange', this.mapCallback);
+        this.map.off('rotatechange', this.mapCallback);
+        this.layer = null;
+        this.program = null;
+        this.gl = null;
+        this.showTiles = [];
+        this.tileCache = {};
+        this.gridCache = {};
+        this.transformBaidu = null as any;
+        this.mapCallback = null;
+        this.map = null;
     }
 }
 
