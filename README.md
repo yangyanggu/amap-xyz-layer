@@ -2,11 +2,11 @@
 [![npm (tag)](https://img.shields.io/npm/v/@vuemap/amap-xyz-layer)](https://www.npmjs.org/package/@vuemap/amap-xyz-layer)
 [![NPM downloads](http://img.shields.io/npm/dm/@vuemap/amap-xyz-layer.svg)](https://npmjs.org/package/@vuemap/amap-xyz-layer)
 ![JS gzip size](http://img.badgesize.io/https://unpkg.com/@vuemap/amap-xyz-layer/dist/index.js?compression=gzip&label=gzip%20size:%20JS)
-[![NPM](https://img.shields.io/npm/l/@vuemap/amap-xyz-layer)](https://github.com/AMap-Web/amap-screenshot)
-[![star](https://badgen.net/github/stars/guyangyang/amap-screenshot)](https://github.com/AMap-Web/amap-screenshot)
+[![NPM](https://img.shields.io/npm/l/@vuemap/amap-xyz-layer)](https://github.com/yangyanggu/amap-xyz-layer)
+[![star](https://badgen.net/github/stars/yangyanggu/amap-xyz-layer)](https://github.com/yangyanggu/amap-xyz-layer)
 
 ### 示例
-[codepen示例](https://codepen.io/yangyanggu/pen/JjvEzaR)
+[codepen示例](https://codepen.io/yangyanggu/pen/vYQQwBO)
 
 ### 简介
 本项目为高德地图的自定义加载瓦片插件，支持瓦片纠偏，可以加载`WGS84`、`gcj02`、`bd09`三种坐标系瓦片。项目基于：https://github.com/gisarmory/mapboxgl.InternetMapCorrection/tree/main/src 进行改造。
@@ -45,7 +45,7 @@ npm install @vuemap/amap-xyz-layer
       pitch: 35,
     });
     const gaodeLayer = new AMap.CustomXyzLayer(map, {
-        url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+        url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
         subdomains: ["1", "2", "3", "4"]
     })
 
@@ -56,8 +56,8 @@ npm install @vuemap/amap-xyz-layer
     })
 
     const baiduLayer = new AMap.CustomXyzLayer(map, {
-        url: '//shangetu{s}.map.bdimg.com/it/u=x={x};y={y};z={z};v=009;type=sate&fm=46',
-        subdomains: ["1", "2", "3", "4"],
+        url: 'https://maponline{s}.bdimg.com/starpic/?qt=satepc&u=x={x};y={y};z={z};v=009;type=sate&fm=46',
+        subdomains: ["1", "2", "3"],
         proj: 'bd09',
         tileType: 'bd09'
     })
@@ -74,7 +74,7 @@ const map = new AMap.Map('app', {
   pitch: 35,
 })
 const gaodeLayer = new CustomXyzLayer(map, {
-    url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+    url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
     subdomains: ["1", "2", "3", "4"]
 })
 
@@ -85,8 +85,8 @@ const tiandituLayer = new CustomXyzLayer(map, {
 })
 
 const baiduLayer = new CustomXyzLayer(map, {
-    url: '//shangetu{s}.map.bdimg.com/it/u=x={x};y={y};z={z};v=009;type=sate&fm=46',
-    subdomains: ["1", "2", "3", "4"],
+    url: 'https://maponline{s}.bdimg.com/starpic/?qt=satepc&u=x={x};y={y};z={z};v=009;type=sate&fm=46',
+    subdomains: ["1", "2", "3"],
     proj: 'bd09',
     tileType: 'bd09'
 })
