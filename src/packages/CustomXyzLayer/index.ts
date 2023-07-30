@@ -4,11 +4,12 @@ import * as vec4 from 'gl-matrix/vec4';
 import {
     lonLatToTileNumbers, tileNumbersToLonLat,
     gcj02_To_gps84, gps84_To_gcj02,
-    gcj02_To_bd09, bd09_To_gcj02, ResultLngLat
-} from '../support/coordConver.js'
+    gcj02_To_bd09, bd09_To_gcj02
+} from '../support/coordConver'
 import TransformClassBaidu from '../support/transform-class-baidu'
 import {template} from '../support/Util.js'
 import {getDistanceScales, zoomToScale} from '../support/web-mercator.js';
+import type { ResultLngLat } from '../support/coordConver'
 
 interface CustomGlLayerOptions {
     zooms?: [number, number]
@@ -48,6 +49,7 @@ interface TileType {
 class CustomXyzLayer {
     options: XyzLayerOptions
     map: any // 地图对象
+    gl: any
     layer: any
     customCoords: any
     center: any
@@ -102,6 +104,7 @@ class CustomXyzLayer {
             zIndex: this.options.zIndex,
             // 初始化的操作，创建图层过程中执行一次。
             init: (gl) => {
+                this.gl = gl;
                 const vertexSource = "" +
                     "uniform mat4 u_matrix;" +
                     "attribute vec2 a_pos;" +
@@ -190,20 +193,20 @@ class CustomXyzLayer {
                 this.isLayerShow = true;
                 map.on('dragging', () => {
                     if (this.isLayerShow) {
-                        this.update(gl)
+                        this.update()
                     }
                 })
                 map.on('zoomchange', () => {
                     if (this.isLayerShow) {
-                        this.update(gl)
+                        this.update()
                     }
                 })
                 map.on('rotatechange', () => {
                     if (this.isLayerShow) {
-                        this.update(gl)
+                        this.update()
                     }
                 })
-                this.update(gl)
+                this.update()
             },
             render: (gl, state) => {
                 const zooms = this.options.zooms as [number, number];
@@ -286,10 +289,11 @@ class CustomXyzLayer {
         }
     }
 
-    update(gl) {
+    update() {
+        const gl = this.gl;
         const map = this.map;
         const center = map.getCenter();
-        let zoom = Math.ceil(map.getZoom());
+        const zoom = Math.ceil(map.getZoom());
         const bounds = map.getBounds();
         let minTile: [number, number],
             maxTile: [number, number];
@@ -499,7 +503,7 @@ class CustomXyzLayer {
     // 设置位置的顶点参数
     //参考：https://github.com/xiaoiver/custom-mapbox-layer/blob/master/src/layers/PointCloudLayer2.ts
     setVertex(gl) {
-        const currentZoomLevel = this.map.getZoom();
+        const currentZoomLevel = this.map.getZoom() - 1;
         const bearing = this.map.getRotation();
         const pitch = this.map.getPitch();
         const center = this.map.getCenter();
@@ -582,10 +586,13 @@ class CustomXyzLayer {
     }
 
     show(){
+        this.isLayerShow = true;
+        this.update();
         this.layer.show()
     }
 
     hide() {
+        this.isLayerShow = false;
         this.layer.hide()
     }
 

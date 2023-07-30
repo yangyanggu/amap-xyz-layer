@@ -7,7 +7,7 @@ settings:
 dependencies:
   gl-matrix:
     specifier: ^3.0.0
-    version: 3.0.0
+    version: 3.4.3
   viewport-mercator-project:
     specifier: ^6.1.1
     version: 6.1.1
@@ -2439,8 +2439,8 @@ packages:
       assert-plus: 1.0.0
     dev: true
 
-  /gl-matrix@3.0.0:
-    resolution: {integrity: sha512-PD4mVH/C/Zs64kOozeFnKY8ybhgwxXXQYGWdB4h68krAHknWJgk9uKOn6z8YElh5//vs++90pb6csrTIDWnexA==}
+  /gl-matrix@3.4.3:
+    resolution: {integrity: sha512-wcCp8vu8FT22BnvKVPjXa/ICBWRq/zjFfdofZy1WSpQZpphblv12/bOQLBC1rMM7SGOFS9ltVmKOHil5+Ml7gA==}
     dev: false
 
   /glob-parent@3.1.0:
@@ -5277,7 +5277,7 @@ packages:
     resolution: {integrity: sha512-nI0GEmXnESwZxWSJuaQkdCnvOv6yckUfqqFbNB8KWVbQY3eUExVM4ZziqCVVs5mNznLjDF1auj6HLW5D5DKcng==}
     dependencies:
       '@babel/runtime': 7.18.9
-      gl-matrix: 3.0.0
+      gl-matrix: 3.4.3
     dev: false
 
   /vinyl-fs@3.0.3:

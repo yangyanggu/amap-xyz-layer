@@ -29,7 +29,8 @@
         center: center,
         zoom: 10,
         viewMode: '3D',
-        pitch: 35
+        pitch: 35,
+        showBuildingBlock: false,
       })
 
       const layers = [];
@@ -44,7 +45,7 @@
       layers.push(gaodeLayer)
 
       const tiandituLayer = new AMap.CustomXyzLayer(map, {
-        url: 'http://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=fb258b4c0bbf60ff7a0205b519ad9a96',
+        url: 'http://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=4c02b2e99dd269d7b8cbde766a0bb7ac',
         subdomains: ["1", "2", "3", "4"],
         proj: 'wgs84'
       })
