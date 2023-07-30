@@ -6,11 +6,11 @@ settings:
 
 dependencies:
   gl-matrix:
-    specifier: ^3.0.0
+    specifier: 3.4.3
     version: 3.4.3
   viewport-mercator-project:
-    specifier: ^6.1.1
-    version: 6.1.1
+    specifier: 6.2.3
+    version: 6.2.3
 
 devDependencies:
   '@pnpm/logger':
@@ -5273,8 +5273,8 @@ packages:
       extsprintf: 1.3.0
     dev: true
 
-  /viewport-mercator-project@6.1.1:
-    resolution: {integrity: sha512-nI0GEmXnESwZxWSJuaQkdCnvOv6yckUfqqFbNB8KWVbQY3eUExVM4ZziqCVVs5mNznLjDF1auj6HLW5D5DKcng==}
+  /viewport-mercator-project@6.2.3:
+    resolution: {integrity: sha512-QQb0/qCLlP4DdfbHHSWVYXpghB2wkLIiiZQnoelOB59mXKQSyZVxjreq1S+gaBJFpcGkWEcyVtre0+2y2DTl/Q==}
     dependencies:
       '@babel/runtime': 7.18.9
       gl-matrix: 3.4.3

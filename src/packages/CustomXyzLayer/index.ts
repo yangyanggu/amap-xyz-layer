@@ -504,7 +504,8 @@ class CustomXyzLayer {
     //参考：https://github.com/xiaoiver/custom-mapbox-layer/blob/master/src/layers/PointCloudLayer2.ts
     setVertex(gl) {
         const currentZoomLevel = this.map.getZoom() - 1;
-        const bearing = this.map.getRotation();
+        let bearing = this.map.getRotation();
+        bearing = 360-bearing; //适配旋转
         const pitch = this.map.getPitch();
         const center = this.map.getCenter();
 

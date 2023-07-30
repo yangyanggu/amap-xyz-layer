@@ -47,7 +47,7 @@
   },
   "homepage": "https://github.com/yangyanggu/amap-xyz-layer",
   "dependencies": {
-    "viewport-mercator-project": "6.1.1",
+    "viewport-mercator-project": "6.2.3",
     "gl-matrix": "3.4.3"
   },
   "devDependencies": {
