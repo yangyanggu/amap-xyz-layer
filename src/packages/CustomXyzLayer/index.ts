@@ -343,7 +343,7 @@ class CustomXyzLayer {
         if (this.options.tileType === 'xyz') {
             centerTile = lonLatToTileNumbers(center.getLng(), center.getLat(), zoom)
         }  //计算中心点所在的瓦片号
-        else if (this.options.tileType === 'bd09') {
+        else{
             centerTile = this.transformBaidu.lnglatToTile(center.getLng(), center.getLat(), zoom)
         }
         currentTiles.sort((a, b) => {
@@ -399,7 +399,7 @@ class CustomXyzLayer {
     }
 
     //创建瓦片
-    createTile(gl, xyz) {
+    createTile(gl, xyz: XYZ) {
         const templateData = {
             x: xyz.x,
             y: xyz.y,
