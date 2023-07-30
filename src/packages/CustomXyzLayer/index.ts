@@ -587,6 +587,7 @@ class CustomXyzLayer {
     }
 
     setzIndex(zIndex: number){
+        this.options.zIndex = zIndex;
         this.layer.setzIndex(zIndex)
     }
 
@@ -595,6 +596,7 @@ class CustomXyzLayer {
     }
 
     setOpacity(opacity: number){
+        this.options.opacity = opacity;
         this.layer.setOpacity(opacity);
     }
 
@@ -603,6 +605,7 @@ class CustomXyzLayer {
     }
 
     setZooms(zooms: [number, number]){
+        this.options.zooms = zooms;
         this.layer.setZooms(zooms)
     }
 
