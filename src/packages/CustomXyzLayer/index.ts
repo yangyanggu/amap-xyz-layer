@@ -206,7 +206,6 @@ class CustomXyzLayer {
                 this.update(gl)
             },
             render: (gl, state) => {
-                console.log('state:P ', state)
                 const zooms = this.options.zooms as [number, number];
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) return
 
@@ -430,13 +429,13 @@ class CustomXyzLayer {
 
 
         //瓦片编号转经纬度，并进行偏移
-        let leftTop, rightTop, leftBottom, rightBottom;
+        let leftTop: ResultLngLat, rightTop: ResultLngLat, leftBottom: ResultLngLat, rightBottom: ResultLngLat;
         if (this.options.tileType === 'xyz') {
             leftTop = this.gridCache[this.createTileKey(xyz)]
             rightTop = this.gridCache[this.createTileKey(xyz.x + 1, xyz.y, xyz.z)]
             leftBottom = this.gridCache[this.createTileKey(xyz.x, xyz.y + 1, xyz.z)]
             rightBottom = this.gridCache[this.createTileKey(xyz.x + 1, xyz.y + 1, xyz.z)]
-        } else if (this.options.tileType === 'bd09') {
+        } else {
             leftTop = this.gridCache[this.createTileKey(xyz.x, xyz.y + 1, xyz.z)]
             rightTop = this.gridCache[this.createTileKey(xyz.x + 1, xyz.y + 1, xyz.z)]
             leftBottom = this.gridCache[this.createTileKey(xyz)]
@@ -476,7 +475,7 @@ class CustomXyzLayer {
         }
 
         //加载瓦片
-        const img = new Image();
+        const img = new Image(256, 256);
         img.onload = () => {
             // 创建纹理对象
             tile.texture = gl.createTexture();

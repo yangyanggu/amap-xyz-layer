@@ -20,6 +20,8 @@
     <div class="control">
       <button onclick="showSatellite()">显示高德本身卫星地图</button>
       <button onclick="showGaodeLayer()">自定义高德本身卫星地图</button>
+      <button onclick="showTiandituLayer()">天地图卫星地图</button>
+      <button onclick="showBaiduLayer()">百度卫星地图</button>
     </div>
     <script type="text/javascript">
       const center = [116.335036, 39.900082]
@@ -41,6 +43,21 @@
       })
       layers.push(gaodeLayer)
 
+      const tiandituLayer = new AMap.CustomXyzLayer(map, {
+        url: 'http://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=fb258b4c0bbf60ff7a0205b519ad9a96',
+        subdomains: ["1", "2", "3", "4"],
+        proj: 'wgs84'
+      })
+      layers.push(tiandituLayer);
+
+      const baiduLayer = new AMap.CustomXyzLayer(map, {
+        url: '//shangetu{s}.map.bdimg.com/it/u=x={x};y={y};z={z};v=009;type=sate&fm=46',
+        subdomains: ["1", "2", "3", "4"],
+        proj: 'bd09',
+        tileType: 'bd09'
+      })
+      layers.push(baiduLayer)
+
       function hideAllLayers(){
         layers.forEach(layer => {
           layer.hide()
@@ -54,6 +71,16 @@
       function showGaodeLayer(){
         hideAllLayers();
         gaodeLayer.show();
+      }
+
+      function showTiandituLayer(){
+        hideAllLayers();
+        tiandituLayer.show();
+      }
+
+      function showBaiduLayer(){
+        hideAllLayers();
+        baiduLayer.show();
       }
 
     </script>
