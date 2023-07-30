@@ -11,18 +11,16 @@ import {template} from '../support/Util.js'
 import {getDistanceScales, zoomToScale} from '../support/web-mercator.js';
 import type { ResultLngLat } from '../support/coordConver'
 
-interface CustomGlLayerOptions {
-    zooms?: [number, number]
-    opacity?: number
-    visible?: boolean
-    zIndex?: number
-}
-
-export interface XyzLayerOptions extends CustomGlLayerOptions {
+export interface XyzLayerOptions{
     url: string
     subdomains?: string[]
     tileType?: 'xyz' | 'bd09'
     proj?: 'wgs84' | 'gcj02' | 'bd09'
+    zooms?: [number, number]
+    opacity?: number
+    visible?: boolean
+    zIndex?: number
+    debug?: boolean
 }
 
 interface XYZ {
@@ -58,6 +56,8 @@ class CustomXyzLayer {
     program = null as any;
     //存放当前显示的瓦片
     showTiles: TileType[] = [];
+
+    isReadRender = false;
 
     //记录当前图层是否在显示
     isLayerShow = false;
@@ -197,18 +197,22 @@ class CustomXyzLayer {
                 this.update()
             },
             render: (gl) => {
+                if(!this.isReadRender){
+                    return;
+                }
                 const zooms = this.options.zooms as [number, number];
-                if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) return
-
+                if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) {
+                    return
+                }
+                this.customCoords.setCenter(this.center);
                 //应用着色程序
                 //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
                 gl.useProgram(this.program);
-
                 for (const tile of this.showTiles) {
                     if (!tile.isLoad) continue;
 
                     //向target绑定纹理对象
-                    gl.bindTexture(gl.TEXTURE_2D, tile.texture);
+                    gl.bindTexture(gl.TEXTURE_2D, tile.texture as WebGLTexture);
                     //开启0号纹理单元
                     gl.activeTexture(gl.TEXTURE0);
                     //配置纹理参数
@@ -222,7 +226,7 @@ class CustomXyzLayer {
                     gl.uniform1i(u_Sampler, 0);
 
 
-                    gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer);
+                    gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer as WebGLBuffer);
                     //设置从缓冲区获取顶点数据的规则
                     gl.vertexAttribPointer(this.a_Pos, tile.PosParam?.size, gl.FLOAT, false, tile.PosParam?.stride, tile.PosParam?.offset);
                     gl.vertexAttribPointer(this.a_TextCoord, tile.TextCoordParam?.size, gl.FLOAT, false, tile.TextCoordParam?.stride, tile.TextCoordParam?.offset);
@@ -254,14 +258,6 @@ class CustomXyzLayer {
         }
     }
 
-    convertLngLat(lnglat) {
-        this.customCoords.setCenter(this.center)
-        const data = this.customCoords.lngLatsToCoords([
-            lnglat
-        ]);
-        return data[0];
-    }
-
     getDefaultGlLayerOptions(): XyzLayerOptions {
         return {
             url: '',
@@ -270,11 +266,13 @@ class CustomXyzLayer {
             visible: true,
             zIndex: 120,
             proj: 'gcj02',
-            tileType: 'xyz'
+            tileType: 'xyz',
+            debug: false
         }
     }
 
     update() {
+        this.isReadRender = false;
         const gl = this.gl;
         const map = this.map;
         const center = map.getCenter();
@@ -311,7 +309,6 @@ class CustomXyzLayer {
             minTile = lonLatToTileNumbers(northWestLngLat[0], northWestLngLat[1], zoom)
             maxTile = lonLatToTileNumbers(sourceEastLngLat[0], sourceEastLngLat[1], zoom)
         }
-
         const currentTiles: XYZ[] = [];
         for (let x = minTile[0]; x <= maxTile[0]; x++) {
             for (let y = minTile[1]; y <= maxTile[1]; y++) {
@@ -349,7 +346,6 @@ class CustomXyzLayer {
         currentTiles.sort((a, b) => {
             return this.tileDistance(a, centerTile) - this.tileDistance(b, centerTile);
         });
-
         //加载瓦片
         this.showTiles = [];
         for (const xyz of currentTiles) {
@@ -362,6 +358,10 @@ class CustomXyzLayer {
                 this.tileCache[this.createTileKey(xyz)] = tile;
             }
         }
+        if(this.showTiles.length > 0){
+            this.showTiles.unshift(this.showTiles[0]);
+        }
+        this.isReadRender = true;
     }
 
     //缓存瓦片号对应的经纬度
@@ -416,7 +416,6 @@ class CustomXyzLayer {
             isLoad: false
         };
 
-
         //瓦片编号转经纬度，并进行偏移
         let leftTop: ResultLngLat, rightTop: ResultLngLat, leftBottom: ResultLngLat, rightBottom: ResultLngLat;
         if (this.options.tileType === 'xyz') {
@@ -433,10 +432,10 @@ class CustomXyzLayer {
 
         //顶点坐标+纹理坐标
         const attrData = new Float32Array([
-            leftTop.lng, leftTop.lat, 0.0, 1.0,
-            leftBottom.lng, leftBottom.lat, 0.0, 0.0,
-            rightTop.lng, rightTop.lat, 1.0, 1.0,
-            rightBottom.lng, rightBottom.lat, 1.0, 0.0
+                leftTop.lng, leftTop.lat, 0.0, 1.0,
+                leftBottom.lng, leftBottom.lat, 0.0, 0.0,
+                rightTop.lng, rightTop.lat, 1.0, 1.0,
+                rightBottom.lng, rightBottom.lat, 1.0, 0.0
         ])
         // var attrData = new Float32Array([
         //     116.38967958133532, 39.90811009556515, 0.0, 1.0,
@@ -472,8 +471,25 @@ class CustomXyzLayer {
             gl.bindTexture(gl.TEXTURE_2D, tile.texture);
             //对纹理进行Y轴反转
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-            //配置纹理图像
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+            if(this.options.debug){
+                // 测试瓦片编号
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const cxt = canvas.getContext('2d') as CanvasRenderingContext2D;
+                cxt.drawImage(img,0,0)
+                cxt.font = "15px Verdana";
+                cxt.fillStyle = "#ff0000";
+                cxt.strokeStyle = "#FF0000";
+                cxt.strokeRect(0, 0, 256, 256);
+                cxt.fillText(`(${  [xyz.x, xyz.y, xyz.z].join(',')  })`, 10, 30);
+                //配置纹理图像
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+            }else{
+                //配置纹理图像
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            }
 
             tile.isLoad = true;
 
@@ -511,7 +527,6 @@ class CustomXyzLayer {
 
         const drawParams = {
             'u_matrix': viewProjectionMatrix,
-            'u_point_size': undefined,
             'u_is_offset': false,
             'u_pixels_per_degree': [0, 0, 0],
             'u_pixels_per_degree2': [0, 0, 0],

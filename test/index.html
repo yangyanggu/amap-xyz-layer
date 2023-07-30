@@ -22,6 +22,7 @@
       <button onclick="showGaodeLayer()">自定义高德本身卫星地图</button>
       <button onclick="showTiandituLayer()">天地图卫星地图</button>
       <button onclick="showBaiduLayer()">百度卫星地图</button>
+      <button onclick="hideBaiduLayer()">隐藏百度卫星地图</button>
     </div>
     <script type="text/javascript">
       const center = [116.335036, 39.900082]
@@ -40,7 +41,8 @@
 
       const gaodeLayer = new AMap.CustomXyzLayer(map, {
         url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
-        subdomains: ["1", "2", "3", "4"]
+        subdomains: ["1", "2", "3", "4"],
+        debug: true
       })
       layers.push(gaodeLayer)
 
@@ -82,6 +84,9 @@
       function showBaiduLayer(){
         hideAllLayers();
         baiduLayer.show();
+      }
+      function hideBaiduLayer(){
+        baiduLayer.hide();
       }
 
     </script>

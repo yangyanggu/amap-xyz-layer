@@ -112,6 +112,7 @@ options: 自定义瓦片图层的参数 <br/>
 | opacity    | number                       | 图层透明度，默认为 1                                                                                        |
 | visible    | boolean                      | 图层是否可见，默认为 true                                                                                    |
 | zIndex     | number                       | 图层的层级，默认为 120                                                                                      | 
+ | debug      | boolean                      | 开启debug后瓦片上将显示瓦片编号                                                                                 |
 
 
 ###### 成员函数
