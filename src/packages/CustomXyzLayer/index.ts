@@ -183,7 +183,9 @@ class CustomXyzLayer {
                 //获取顶点位置变量
                 this.a_Pos = gl.getAttribLocation(this.program, "a_pos");
                 this.a_TextCoord = gl.getAttribLocation(this.program, 'a_TextCoord');
-                this.isLayerShow = true;
+                if(this.options.visible){
+                    this.isLayerShow = true;
+                }
                 this.mapCallback = () => {
                     if (this.isLayerShow) {
                         this.update()
