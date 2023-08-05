@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>测试</title>
-    <script src = 'https://webapi.amap.com/maps?v=2.0&key=6640620be99fa0d010a3b4e812797cd7'></script>
+    <script src = 'https://webapi.amap.com/maps?v=2.0&key=6640620be99fa0d010a3b4e812797cd7&plugin=AMap.DistrictSearch'></script>
+    <script src="./mask.js"></script>
     <script src="/dist/index.js" ></script>
     <style type="text/css">
       .control{
@@ -19,47 +20,70 @@
     <div id="app" style="height: 600px;"></div>
     <div class="control">
       <button onclick="showSatellite()">显示高德本身卫星地图</button>
-      <button onclick="showGaodeLayer()">自定义高德本身卫星地图</button>
-      <button onclick="showTiandituLayer()">天地图卫星地图</button>
-      <button onclick="showBaiduLayer()">百度卫星地图</button>
+      <button onclick="hideSatellite()">隐藏高德本身卫星地图</button>
+      <button onclick="createGaode()">创建自定义高德本身卫星地图</button>
+      <button onclick="destroyGaode()">销毁自定义高德本身卫星地图</button>
+      <button onclick="createTianditu()">创建天地图卫星地图</button>
+      <button onclick="destroyTianditu()">销毁天地图卫星地图</button>
+      <button onclick="createBaidu()">创建百度卫星地图</button>
+      <button onclick="destroyBaidu()">销毁百度卫星地图</button>
       <button onclick="hideBaiduLayer()">隐藏百度卫星地图</button>
     </div>
     <script type="text/javascript">
       const center = [116.335036, 39.900082]
+
       const map = new AMap.Map('app', {
         center: center,
         zoom: 10,
         viewMode: '3D',
         pitch: 35,
         showBuildingBlock: false,
+        // mask: mask1
       })
+      /*const polyline = new AMap.Polyline({
+        path: mask1
+      })
+      map.add(polyline)*/
 
       const layers = [];
       const satellite = new AMap.TileLayer.Satellite()
       map.addLayer(satellite)
       layers.push(satellite)
 
-      const gaodeLayer = new AMap.CustomXyzLayer(map, {
-        url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
-        subdomains: ["1", "2", "3", "4"],
-        debug: true
-      })
-      layers.push(gaodeLayer)
+      let gaodeLayer
+      function createGaode(){
+        gaodeLayer = new AMap.CustomXyzLayer(map, {
+          url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+          subdomains: ["1", "2", "3", "4"],
+          debug: true,
+          mask: mask1,
+        })
+        layers.push(gaodeLayer)
+      }
 
-      const tiandituLayer = new AMap.CustomXyzLayer(map, {
-        url: 'http://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=4c02b2e99dd269d7b8cbde766a0bb7ac',
-        subdomains: ["1", "2", "3", "4"],
-        proj: 'wgs84'
-      })
-      layers.push(tiandituLayer);
+      function destroyGaode(){
+        gaodeLayer.destroy();
+        let index = layers.findIndex(item => item === gaodeLayer);
+        layers.splice(index, 1);
+        gaodeLayer = undefined;
+      }
 
-      const baiduLayer = new AMap.CustomXyzLayer(map, {
-        url: 'https://maponline{s}.bdimg.com/starpic/?qt=satepc&u=x={x};y={y};z={z};v=009;type=sate&fm=46',
-        subdomains: ["1", "2", "3"],
-        proj: 'bd09',
-        tileType: 'bd09'
-      })
-      layers.push(baiduLayer)
+      let tiandituLayer;
+      function createTianditu(){
+        tiandituLayer = new AMap.CustomXyzLayer(map, {
+          url: 'http://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=4c02b2e99dd269d7b8cbde766a0bb7ac',
+          subdomains: ["1", "2", "3", "4"],
+          proj: 'wgs84'
+        })
+        layers.push(tiandituLayer);
+      }
+
+      function destroyTianditu(){
+        tiandituLayer.destroy();
+        let index = layers.findIndex(item => item === tiandituLayer);
+        layers.splice(index, 1);
+        tiandituLayer = undefined;
+      }
 
       function hideAllLayers(){
         layers.forEach(layer => {
@@ -71,22 +95,32 @@
         satellite.show();
       }
 
-      function showGaodeLayer(){
-        hideAllLayers();
-        gaodeLayer.show();
+      function hideSatellite(){
+        satellite.hide();
       }
 
-      function showTiandituLayer(){
-        hideAllLayers();
-        tiandituLayer.show();
+      let baiduLayer;
+      function createBaidu() {
+        baiduLayer = new AMap.CustomXyzLayer(map, {
+          url: 'https://maponline{s}.bdimg.com/starpic/?qt=satepc&u=x={x};y={y};z={z};v=009;type=sate&fm=46',
+          subdomains: ["1", "2", "3"],
+          proj: 'bd09',
+          tileType: 'bd09'
+        })
+        layers.push(baiduLayer)
       }
 
-      function showBaiduLayer(){
-        hideAllLayers();
-        baiduLayer.show();
+      function destroyBaidu(){
+        baiduLayer.destroy();
+        let index = layers.findIndex(item => item === baiduLayer);
+        layers.splice(index, 1);
+        baiduLayer = undefined;
       }
+
       function hideBaiduLayer(){
-        baiduLayer.hide();
+        if(baiduLayer){
+          baiduLayer.hide();
+        }
       }
 
     </script>

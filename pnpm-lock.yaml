@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  earcut:
+    specifier: 2.2.4
+    version: 2.2.4
   gl-matrix:
     specifier: 3.3.0
     version: 3.3.0
@@ -31,6 +34,9 @@ devDependencies:
   '@rollup/plugin-typescript':
     specifier: ^8.3.0
     version: 8.3.4(rollup@2.78.1)(typescript@4.7.4)
+  '@types/earcut':
+    specifier: 2.1.1
+    version: 2.1.1
   '@typescript-eslint/eslint-plugin':
     specifier: 5.35.1
     version: 5.35.1(@typescript-eslint/parser@5.35.1)(eslint@8.22.0)(typescript@4.7.4)
@@ -365,6 +371,10 @@ packages:
   /@tootallnate/once@1.1.2:
     resolution: {integrity: sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==}
     engines: {node: '>= 6'}
+    dev: true
+
+  /@types/earcut@2.1.1:
+    resolution: {integrity: sha512-w8oigUCDjElRHRRrMvn/spybSMyX8MTkKA5Dv+tS1IE/TgmNZPqUYtvYBXGY8cieSE66gm+szeK+bnbxC2xHTQ==}
     dev: true
 
   /@types/estree@0.0.39:
@@ -1458,6 +1468,10 @@ packages:
       is-plain-object: 2.0.4
       object.defaults: 1.1.0
     dev: true
+
+  /earcut@2.2.4:
+    resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
+    dev: false
 
   /eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}

@@ -50,7 +50,8 @@
   "homepage": "https://github.com/yangyanggu/amap-xyz-layer",
   "dependencies": {
     "viewport-mercator-project": "6.2.3",
-    "gl-matrix": "3.3.0"
+    "gl-matrix": "3.3.0",
+    "earcut": "2.2.4"
   },
   "devDependencies": {
     "@pnpm/logger": "4.0.0",
@@ -61,6 +62,7 @@
     "@rollup/plugin-typescript": "^8.3.0",
     "@typescript-eslint/eslint-plugin": "5.35.1",
     "@typescript-eslint/parser": "5.35.1",
+    "@types/earcut": "2.1.1",
     "cross-env": "^7.0.3",
     "esbuild": "^0.15.5",
     "eslint": "8.22.0",

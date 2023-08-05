@@ -26,6 +26,7 @@ export interface XyzLayerOptions{
     zIndex?: number
     debug?: boolean
     mask?: MaskType
+    cacheSize?: number
 }
 
 interface XYZ {
@@ -42,11 +43,20 @@ interface PosParamType {
 
 interface TileType {
     xyz: XYZ
+    xyzKey: string
     buffer?: WebGLBuffer
     PosParam?: PosParamType
     TextCoordParam?: PosParamType
     texture?: WebGLTexture
     isLoad: boolean
+}
+
+// mask缓存数据
+interface MaskCacheType {
+    FSIZE: number
+    vertexBuffer: WebGLBuffer
+    indexBuffer: WebGLBuffer
+    deviationLength: number
 }
 
 class CustomXyzLayer {
@@ -68,7 +78,7 @@ class CustomXyzLayer {
     isLayerShow = false;
 
     //存放所有加载过的瓦片
-    tileCache = {};
+    tileCache: TileType[] = [];
 
     //存放瓦片号对应的经纬度
     gridCache: Record<string, ResultLngLat> = {}
@@ -80,7 +90,7 @@ class CustomXyzLayer {
 
     mapCallback: any
 
-    maskCache: any
+    maskCache: MaskCacheType[] = []
 
     // 掩膜的着色器程序
     maskProgram: any
@@ -94,7 +104,7 @@ class CustomXyzLayer {
         this.validate(options);
         this.map = map
         this.center = map.getCenter().toArray();
-        this.options = Object.assign(this.getDefaultGlLayerOptions(), options)
+        this.options = Object.assign(this.getDefaultGlLayerOptions(), options);
         this.customCoords = map.customCoords;
         // 数据使用转换工具进行转换，这个操作必须要提前执行（在获取镜头参数 函数之前执行），否则将会获得一个错误信息。
         this.customCoords.lngLatsToCoords([
@@ -242,62 +252,70 @@ class CustomXyzLayer {
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) {
                     return
                 }
-                // 清除模板缓存
-                gl.clearStencil(0);
-                gl.clear(gl.STENCIL_BUFFER_BIT);
-                // 开启模板测试
-                gl.enable(gl.STENCIL_TEST);
+                if(this.maskCache.length > 0){
+                    // 清除模板缓存
+                    gl.clearStencil(0);
+                    gl.clear(gl.STENCIL_BUFFER_BIT);
+                    // 开启模板测试
+                    gl.enable(gl.STENCIL_TEST);
 
-                // 设置模板测试参数
-                gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
-                gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
-                this._renderMask(gl);
+                    // 设置模板测试参数
+                    gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
+                    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+                    this._renderMask(gl);
 
-                // ----- 模板方法 begin -----
+                    // ----- 模板方法 begin -----
 
-                //设置模板测试参数
-                gl.stencilFunc(gl.EQUAL, 1, 0xFF);
-                //设置模板测试后的操作
-                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+                    //设置模板测试参数
+                    gl.stencilFunc(gl.EQUAL, 1, 0xFF);
+                    //设置模板测试后的操作
+                    gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
-                // ----- 模板方法 end -----
+                    // ----- 模板方法 end -----
 
-                // 关闭深度检测
-                gl.disable(gl.DEPTH_TEST);
+                    // 关闭深度检测
+                    gl.disable(gl.DEPTH_TEST);
 
-                this._renderTile(gl);
-                // 开启深度检测
-                gl.enable(gl.DEPTH_TEST);
+                    this._renderTile(gl);
+                    // 开启深度检测
+                    gl.enable(gl.DEPTH_TEST);
 
-                // ----- 模板方法 begin -----
+                    // ----- 模板方法 begin -----
 
-                // 关闭模板测试
-                gl.disable(gl.STENCIL_TEST);
+                    // 关闭模板测试
+                    gl.disable(gl.STENCIL_TEST);
+                }else{
+                    this._renderTile(gl);
+                }
+
             },
         });
         map.add(this.layer);
     }
 
     _renderMask(gl){
-        if(!this.maskCache){
+        if(!this.maskCache.length){
             return;
         }
         this.customCoords.setCenter(this.center);
         //应用着色程序
         //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
         gl.useProgram(this.maskProgram);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.maskCache.vertexBuffer);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.maskCache.indexBuffer);
-        //激活顶点数据缓冲区
-        gl.vertexAttribPointer(this.mask_Pos as GLint, 2, gl.FLOAT, false,  this.maskCache.FSIZE * 2, 0);
-        gl.enableVertexAttribArray(this.mask_Pos as GLint);
+        for (const mask of this.maskCache) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, mask.vertexBuffer);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mask.indexBuffer);
+            //激活顶点数据缓冲区
+            gl.vertexAttribPointer(this.mask_Pos as GLint, 2, gl.FLOAT, false,  mask.FSIZE * 2, 0);
+            gl.enableVertexAttribArray(this.mask_Pos as GLint);
 
-        // 设置位置的顶点参数
-        this.setVertex(gl, this.maskProgram)
-        //绘制图形
-        gl.drawElements(gl.TRIANGLES, this.maskCache.deviationLength, gl.UNSIGNED_INT, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+            // 设置位置的顶点参数
+            this.setVertex(gl, this.maskProgram)
+            //绘制图形
+            gl.drawElements(gl.TRIANGLES, mask.deviationLength, gl.UNSIGNED_INT, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        }
+
         // gl.drawElements(gl.TRIANGLES, this.maskCache.deviationLength, gl.UNSIGNED_INT, 0);
     }
 
@@ -362,37 +380,61 @@ class CustomXyzLayer {
             zIndex: 120,
             proj: 'gcj02',
             tileType: 'xyz',
-            debug: false
+            debug: false,
+            cacheSize: -1,
         }
     }
 
-    _createMask(mask: any) {
+    _createMask(mask?: MaskType) {
         if(!mask || mask.length === 0){
-            this.maskCache = undefined;
+            this.maskCache = [];
             return
         }
-        // mask = this._convertLnglatToCoords(mask);
-        const data = earcut.flatten(mask);
-        // console.log('earcut: ', earcut)
-        const triangles = earcut(data.vertices, data.holes, data.dimensions);
-        const gl = this.gl;
-        //创建顶点缓冲区对象
-        const vertexArray = new Float32Array(data.vertices);
-        const vertexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertexArray , gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        // 创建索引缓冲区对象
-        const indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(triangles), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-        this.maskCache = {
-            FSIZE: vertexArray.BYTES_PER_ELEMENT,
-            vertexBuffer,
-            indexBuffer,
-            deviationLength: triangles.length
+
+        const deep = this.getMaskDeep(mask);
+        if(deep < 2 || deep>4){
+            console.warn('mask数据格式不正确')
+            return;
         }
+        if(deep === 2){
+            mask = [[mask]] as any;
+        }else if(deep === 3){
+            mask = [mask] as any;
+        }
+        for(const maskItem of mask as number[][][][]){
+            const data = earcut.flatten(maskItem);
+            // console.log('earcut: ', earcut)
+            const triangles = earcut(data.vertices, data.holes, data.dimensions);
+            const gl = this.gl;
+            //创建顶点缓冲区对象
+            const vertexArray = new Float32Array(data.vertices);
+            const vertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertexArray , gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            // 创建索引缓冲区对象
+            const indexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(triangles), gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+            this.maskCache.push({
+                FSIZE: vertexArray.BYTES_PER_ELEMENT,
+                vertexBuffer,
+                indexBuffer,
+                deviationLength: triangles.length
+            })
+        }
+
+    }
+
+    getMaskDeep(mask: any, deepNumber = 1): number {
+        if(!mask.length){
+            return -1;
+        }
+        if(typeof mask[0] === 'number'){
+            return deepNumber;
+        }
+        return this.getMaskDeep(mask[0], deepNumber+1);
     }
 
     _convertLnglatToCoords(mask: any){
@@ -481,21 +523,36 @@ class CustomXyzLayer {
             return this.tileDistance(a, centerTile) - this.tileDistance(b, centerTile);
         });
         //加载瓦片
-        this.showTiles = [];
+        this._clearShowTile();
         for (const xyz of currentTiles) {
             //走缓存或新加载
-            if (this.tileCache[this.createTileKey(xyz)]) {
-                this.showTiles.push(this.tileCache[this.createTileKey(xyz)])
+            const tileKey = this.createTileKey(xyz);
+            const tileCache = this.getTileCache(tileKey)
+            if (tileCache) {
+                this.showTiles.push(tileCache);
             } else {
                 const tile = this.createTile(gl, xyz)
                 this.showTiles.push(tile);
-                this.tileCache[this.createTileKey(xyz)] = tile;
+                this.pushTileCache(tile);
             }
         }
         if(this.showTiles.length > 0){
             this.showTiles.unshift(this.showTiles[0]);
         }
         this.isReadRender = true;
+    }
+
+    getTileCache(key: string){
+        return this.tileCache.find(item => item.xyzKey === key)
+    }
+
+    pushTileCache(tile: TileType){
+        const cacheSize = this.options.cacheSize as number;
+        if(cacheSize > 0 && this.tileCache.length >= cacheSize){
+            this._destroyTile(this.tileCache[0]);
+            this.tileCache.splice(0, 1);
+        }
+        this.tileCache.push(tile);
     }
 
     //缓存瓦片号对应的经纬度
@@ -547,6 +604,7 @@ class CustomXyzLayer {
 
         const tile: TileType = {
             xyz,
+            xyzKey: this.createTileKey(xyz),
             isLoad: false
         };
 
@@ -758,8 +816,52 @@ class CustomXyzLayer {
         this.layer.setZooms(zooms)
     }
 
+    setMask(mask?: MaskType) {
+        this._destroyMaskCache();
+        this._createMask(mask);
+        this.options.mask = mask;
+        this.map.render();
+    }
+
+    getMask() {
+        return this.options.mask;
+    }
+
     getMap(){
         return this.map;
+    }
+
+    _destroyMaskCache(){
+        this.maskCache.forEach(item => {
+            this.gl.deleteBuffer(item.vertexBuffer);
+            this.gl.deleteBuffer(item.indexBuffer);
+        })
+        this.maskCache = [];
+    }
+
+    _destroyTile(tile: TileType){
+        if(tile.buffer){
+            this.gl.deleteBuffer(tile.buffer);
+        }
+        if(tile.texture){
+            this.gl.deleteTexture(tile.texture);
+        }
+    }
+
+    _clearAllCacheTile() {
+        this.tileCache.forEach(tile => {
+            this._destroyTile(tile);
+        })
+        this.tileCache = [];
+    }
+
+    _clearShowTile() {
+        this.showTiles.forEach(item => {
+            if(this.tileCache.findIndex(cache => cache.xyzKey === item.xyzKey) < 0){
+                this._destroyTile(item);
+            }
+        });
+        this.showTiles = [];
     }
 
     destroy() {
@@ -768,14 +870,21 @@ class CustomXyzLayer {
         this.map.off('dragging', this.mapCallback);
         this.map.off('zoomchange', this.mapCallback);
         this.map.off('rotatechange', this.mapCallback);
-        this.layer = null;
-        this.program = null;
-        this.gl = null;
-        this.showTiles = [];
-        this.tileCache = {};
+        this._destroyMaskCache();
+        this._clearShowTile();
+        this._clearAllCacheTile();
         this.gridCache = {};
         this.transformBaidu = null as any;
         this.mapCallback = null;
+        this.gl.deleteProgram(this.program);
+        this.gl.deleteProgram(this.maskProgram);
+        this.program = null;
+        this.maskProgram = null;
+        this.options = undefined as any;
+        this.customCoords = undefined;
+        this.center = undefined;
+        this.layer = null;
+        this.gl = null;
         this.map = null;
     }
 }
