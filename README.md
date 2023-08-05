@@ -20,7 +20,7 @@ CDN加载需要先加载高德地图JS，代码如下
 ```js
 <!--加载高德地图JS 2.0 -->
 <script src = 'https://webapi.amap.com/maps?v=2.0&key=YOUR_KEY'></script>
-<!--加载screenshot插件 -->
+<!--加载自定义瓦片插件 -->
 <script src="https://cdn.jsdelivr.net/npm/@vuemap/amap-xyz-layer/dist/index.js"></script>
 ```
 
@@ -102,32 +102,35 @@ map: 地图实例对象<br/>
 options: 自定义瓦片图层的参数 <br/>
 
 ###### options参数说明
-| 属性名        | 属性类型                         | 属性描述                                                                                               |
-|------------|------------------------------|----------------------------------------------------------------------------------------------------|
-| url        | string                       | 瓦片地址，支持 {s} {x} {y} {z}，示例：`http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}` |
-| subdomains | string[]                     | 子域名数组，当url中设置{s}后，该属性必填                                                                            | 
-| tileType   | 'xyz' \| 'bd09'              | 瓦片分割类型，默认是`xyz`，xyz代表瓦片是编号是从左上角开始，百度瓦片是由中间开始，所以需要区分普通瓦片还是百度                                        |
-| proj       | 'wgs84' \| 'gcj02' \| 'bd09' | 瓦片使用的坐标系，默认是`gcj02`                                                                                |
-| zooms      | [number,number]              | 图层缩放等级范围，默认 [2, 18]                                                                                |
-| opacity    | number                       | 图层透明度，默认为 1                                                                                        |
-| visible    | boolean                      | 图层是否可见，默认为 true                                                                                    |
-| zIndex     | number                       | 图层的层级，默认为 120                                                                                      | 
- | debug      | boolean                      | 开启debug后瓦片上将显示瓦片编号                                                                                 |
-
+| 属性名        | 属性类型                                           | 属性描述                                                                                               |
+|------------|------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| url        | string                                         | 瓦片地址，支持 {s} {x} {y} {z}，示例：`http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}` |
+| subdomains | string[]                                       | 子域名数组，当url中设置{s}后，该属性必填                                                                            | 
+| tileType   | 'xyz' \| 'bd09'                                | 瓦片分割类型，默认是`xyz`，xyz代表瓦片是编号是从左上角开始，百度瓦片是由中间开始，所以需要区分普通瓦片还是百度                                        |
+| proj       | 'wgs84' \| 'gcj02' \| 'bd09'                   | 瓦片使用的坐标系，默认是`gcj02`                                                                                |
+| zooms      | [number,number]                                | 图层缩放等级范围，默认 [2, 18]                                                                                |
+| opacity    | number                                         | 图层透明度，默认为 1                                                                                        |
+| visible    | boolean                                        | 图层是否可见，默认为 true                                                                                    |
+| zIndex     | number                                         | 图层的层级，默认为 120                                                                                      | 
+ | debug      | boolean                                        | 开启debug后瓦片上将显示瓦片编号                                                                                 |
+| mask       | number[][] \| number[][][]   \| number[][][][] | 瓦片掩膜，数据结构与AMap.Map的mask参数一致                                                                        |
+| cacheSize  | number                                         | 瓦片缓存数量，默认-1，不限制缓存瓦片数                                                                               |
 
 ###### 成员函数
 
-| 函数名        | 入参               | 返回值              | 描述              |
-|------------|------------------|------------------|-----------------|
-| show       | 无                | 无                | 显示图层            |
-| hide       | 无                | 无                | 隐藏图层            |
-| getzIndex  | 无                | number           | 获取图层层级          |
- | setzIndex  | number           | 无                | 设置图层层级          |
-| getOpacity | 无                | number           | 获取图层透明度         | 
-| setOpacity | number           | 无                | 设置图层透明度         |
-| getZooms   | 无                | [number, number] | 获取图层的显示层级       |
-| setZooms   | [number, number] | 无                | 设置图层显示层级        |
-| destroy    | 无                | 无                | 销毁图层，自动从地图上移除图层 |
+| 函数名        | 入参                                                          | 返回值                                                         | 描述                           |
+|------------|-------------------------------------------------------------|-------------------------------------------------------------|------------------------------|
+| show       | 无                                                           | 无                                                           | 显示图层                         |
+| hide       | 无                                                           | 无                                                           | 隐藏图层                         |
+| getzIndex  | 无                                                           | number                                                      | 获取图层层级                       |
+ | setzIndex  | number                                                      | 无                                                           | 设置图层层级                       |
+| getOpacity | 无                                                           | number                                                      | 获取图层透明度                      | 
+| setOpacity | number                                                      | 无                                                           | 设置图层透明度                      |
+| getZooms   | 无                                                           | [number, number]                                            | 获取图层的显示层级                    |
+| setZooms   | [number, number]                                            | 无                                                           | 设置图层显示层级                     |
+| destroy    | 无                                                           | 无                                                           | 销毁图层，自动从地图上移除图层              |
+| setMask    | undefined \| number[][] \| number[][][]   \| number[][][][] | 无                                                           | 设置掩膜，可以通过传undefined删除之前设置的掩膜 |
+| getMask    | 无                                                           | undefined \| number[][] \| number[][][]   \| number[][][][] | 获取掩膜数据                       |
 ###### 事件列表
 暂无事件
 
