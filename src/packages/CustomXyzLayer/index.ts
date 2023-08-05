@@ -1,6 +1,7 @@
 import WebMercatorViewport from 'viewport-mercator-project';
 import * as mat4 from 'gl-matrix/mat4';
 import * as vec4 from 'gl-matrix/vec4';
+import earcut from 'earcut';
 import {
     lonLatToTileNumbers, tileNumbersToLonLat,
     gcj02_To_gps84, gps84_To_gcj02,
@@ -10,6 +11,9 @@ import TransformClassBaidu from '../support/transform-class-baidu'
 import {template} from '../support/Util.js'
 import {getDistanceScales, zoomToScale} from '../support/web-mercator.js';
 import type { ResultLngLat } from '../support/coordConver'
+
+// 掩膜数据结构
+type MaskType = number[][] | number[][][] | number[][][][]
 
 export interface XyzLayerOptions{
     url: string
@@ -21,6 +25,7 @@ export interface XyzLayerOptions{
     visible?: boolean
     zIndex?: number
     debug?: boolean
+    mask?: MaskType
 }
 
 interface XYZ {
@@ -75,6 +80,13 @@ class CustomXyzLayer {
 
     mapCallback: any
 
+    maskCache: any
+
+    // 掩膜的着色器程序
+    maskProgram: any
+
+    mask_Pos: GLint | undefined;
+
     constructor(map: any, options: XyzLayerOptions) {
         if (!map) {
             throw new Error('请传入地图实例')
@@ -86,7 +98,7 @@ class CustomXyzLayer {
         this.customCoords = map.customCoords;
         // 数据使用转换工具进行转换，这个操作必须要提前执行（在获取镜头参数 函数之前执行），否则将会获得一个错误信息。
         this.customCoords.lngLatsToCoords([
-            map.getCenter().toArray()
+            this.center
         ]);
 
         this.layer = new AMap.GLCustomLayer({
@@ -183,6 +195,31 @@ class CustomXyzLayer {
                 //获取顶点位置变量
                 this.a_Pos = gl.getAttribLocation(this.program, "a_pos");
                 this.a_TextCoord = gl.getAttribLocation(this.program, 'a_TextCoord');
+
+                //掩膜处理
+
+                const maskFragmentSource = "" +
+                    "void main() {" +
+                    "    gl_FragColor = vec4(0.0, 1.0, 0.0, 0.0);" +
+                    "}";
+
+                //初始化掩膜顶点着色器
+                const maskVertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(maskVertexShader, vertexSource);
+                gl.compileShader(maskVertexShader);
+                //初始化掩膜片元着色器
+                const maskFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(maskFragmentShader, maskFragmentSource);
+                gl.compileShader(maskFragmentShader);
+                //初始化着色器程序
+                this.maskProgram = gl.createProgram();
+                gl.attachShader(this.maskProgram, maskVertexShader);
+                gl.attachShader(this.maskProgram, maskFragmentShader);
+                gl.linkProgram(this.maskProgram);
+
+                //获取顶点位置变量
+                this.mask_Pos = gl.getAttribLocation(this.maskProgram, "a_pos");
+
                 if(this.options.visible){
                     this.isLayerShow = true;
                 }
@@ -194,6 +231,7 @@ class CustomXyzLayer {
                 map.on('dragging', this.mapCallback)
                 map.on('zoomchange', this.mapCallback)
                 map.on('rotatechange', this.mapCallback)
+                this._createMask(this.options.mask);
                 this.update()
             },
             render: (gl) => {
@@ -204,49 +242,106 @@ class CustomXyzLayer {
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) {
                     return
                 }
-                this.customCoords.setCenter(this.center);
-                //应用着色程序
-                //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
-                gl.useProgram(this.program);
-                for (const tile of this.showTiles) {
-                    if (!tile.isLoad) continue;
+                // 清除模板缓存
+                gl.clearStencil(0);
+                gl.clear(gl.STENCIL_BUFFER_BIT);
+                // 开启模板测试
+                gl.enable(gl.STENCIL_TEST);
 
-                    //向target绑定纹理对象
-                    gl.bindTexture(gl.TEXTURE_2D, tile.texture as WebGLTexture);
-                    //开启0号纹理单元
-                    gl.activeTexture(gl.TEXTURE0);
-                    //配置纹理参数
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
-                    // 获取纹理的存储位置
-                    // eslint-disable-next-line camelcase
-                    const u_Sampler = gl.getUniformLocation(this.program, 'u_Sampler');
-                    //将0号纹理传递给着色器
-                    gl.uniform1i(u_Sampler, 0);
+                // 设置模板测试参数
+                gl.stencilFunc(gl.ALWAYS, 1, 0xFF);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+                this._renderMask(gl);
 
+                // ----- 模板方法 begin -----
 
-                    gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer as WebGLBuffer);
-                    //设置从缓冲区获取顶点数据的规则
-                    gl.vertexAttribPointer(this.a_Pos, tile.PosParam?.size, gl.FLOAT, false, tile.PosParam?.stride, tile.PosParam?.offset);
-                    gl.vertexAttribPointer(this.a_TextCoord, tile.TextCoordParam?.size, gl.FLOAT, false, tile.TextCoordParam?.stride, tile.TextCoordParam?.offset);
-                    //激活顶点数据缓冲区
-                    gl.enableVertexAttribArray(this.a_Pos);
-                    gl.enableVertexAttribArray(this.a_TextCoord);
+                //设置模板测试参数
+                gl.stencilFunc(gl.EQUAL, 1, 0xFF);
+                //设置模板测试后的操作
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
-                    // 设置位置的顶点参数
-                    this.setVertex(gl)
+                // ----- 模板方法 end -----
 
-                    //开启阿尔法混合，实现注记半透明效果
-                    gl.enable(gl.BLEND);
-                    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                // 关闭深度检测
+                gl.disable(gl.DEPTH_TEST);
 
-                    //绘制图形
-                    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                }
+                this._renderTile(gl);
+                // 开启深度检测
+                gl.enable(gl.DEPTH_TEST);
+
+                // ----- 模板方法 begin -----
+
+                // 关闭模板测试
+                gl.disable(gl.STENCIL_TEST);
             },
         });
         map.add(this.layer);
+    }
+
+    _renderMask(gl){
+        if(!this.maskCache){
+            return;
+        }
+        this.customCoords.setCenter(this.center);
+        //应用着色程序
+        //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
+        gl.useProgram(this.maskProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.maskCache.vertexBuffer);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.maskCache.indexBuffer);
+        //激活顶点数据缓冲区
+        gl.vertexAttribPointer(this.mask_Pos as GLint, 2, gl.FLOAT, false,  this.maskCache.FSIZE * 2, 0);
+        gl.enableVertexAttribArray(this.mask_Pos as GLint);
+
+        // 设置位置的顶点参数
+        this.setVertex(gl, this.maskProgram)
+        //绘制图形
+        gl.drawElements(gl.TRIANGLES, this.maskCache.deviationLength, gl.UNSIGNED_INT, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        // gl.drawElements(gl.TRIANGLES, this.maskCache.deviationLength, gl.UNSIGNED_INT, 0);
+    }
+
+    _renderTile(gl) {
+        this.customCoords.setCenter(this.center);
+        //应用着色程序
+        //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
+        gl.useProgram(this.program);
+        for (const tile of this.showTiles) {
+            if (!tile.isLoad) continue;
+
+            //向target绑定纹理对象
+            gl.bindTexture(gl.TEXTURE_2D, tile.texture as WebGLTexture);
+            //开启0号纹理单元
+            gl.activeTexture(gl.TEXTURE0);
+            //配置纹理参数
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+            // 获取纹理的存储位置
+            // eslint-disable-next-line camelcase
+            const u_Sampler = gl.getUniformLocation(this.program, 'u_Sampler');
+            //将0号纹理传递给着色器
+            gl.uniform1i(u_Sampler, 0);
+
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer as WebGLBuffer);
+            //设置从缓冲区获取顶点数据的规则
+            gl.vertexAttribPointer(this.a_Pos, tile.PosParam?.size, gl.FLOAT, false, tile.PosParam?.stride, tile.PosParam?.offset);
+            gl.vertexAttribPointer(this.a_TextCoord, tile.TextCoordParam?.size, gl.FLOAT, false, tile.TextCoordParam?.stride, tile.TextCoordParam?.offset);
+            //激活顶点数据缓冲区
+            gl.enableVertexAttribArray(this.a_Pos);
+            gl.enableVertexAttribArray(this.a_TextCoord);
+
+            // 设置位置的顶点参数
+            this.setVertex(gl, this.program)
+
+            //开启阿尔法混合，实现注记半透明效果
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+            //绘制图形
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
     }
 
     validate(options: XyzLayerOptions) {
@@ -269,6 +364,45 @@ class CustomXyzLayer {
             tileType: 'xyz',
             debug: false
         }
+    }
+
+    _createMask(mask: any) {
+        if(!mask || mask.length === 0){
+            this.maskCache = undefined;
+            return
+        }
+        // mask = this._convertLnglatToCoords(mask);
+        const data = earcut.flatten(mask);
+        // console.log('earcut: ', earcut)
+        const triangles = earcut(data.vertices, data.holes, data.dimensions);
+        const gl = this.gl;
+        //创建顶点缓冲区对象
+        const vertexArray = new Float32Array(data.vertices);
+        const vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertexArray , gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        // 创建索引缓冲区对象
+        const indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(triangles), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        this.maskCache = {
+            FSIZE: vertexArray.BYTES_PER_ELEMENT,
+            vertexBuffer,
+            indexBuffer,
+            deviationLength: triangles.length
+        }
+    }
+
+    _convertLnglatToCoords(mask: any){
+        if(!mask || mask.length === 0){
+            return mask;
+        }
+        if(typeof mask[0] === 'number'){
+            return this.map.lngLatToCoords([mask[0], mask[1]]);
+        }
+        return mask.map(item => this._convertLnglatToCoords(item))
     }
 
     update() {
@@ -444,6 +578,7 @@ class CustomXyzLayer {
         //     116.39486013141436, 39.90294980726742, 1.0, 0.0
         // ])
         const FSIZE = attrData.BYTES_PER_ELEMENT;
+
         //创建缓冲区并传入数据
         const buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -503,7 +638,7 @@ class CustomXyzLayer {
 
     // 设置位置的顶点参数
     //参考：https://github.com/xiaoiver/custom-mapbox-layer/blob/master/src/layers/PointCloudLayer2.ts
-    setVertex(gl) {
+    setVertex(gl, program: any) {
         const currentZoomLevel = this.map.getZoom() - 1;
         let bearing = this.map.getRotation();
         bearing = 360-bearing; //适配旋转
@@ -573,16 +708,15 @@ class CustomXyzLayer {
             drawParams['u_pixels_per_degree2'] = pixelsPerDegree2 && pixelsPerDegree2.map(p => Math.fround(p));
         }
 
+        gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_matrix"), false, drawParams['u_matrix']);
 
-        gl.uniformMatrix4fv(gl.getUniformLocation(this.program, "u_matrix"), false, drawParams['u_matrix']);
-
-        gl.uniform1f(gl.getUniformLocation(this.program, "u_project_scale"), drawParams['u_project_scale']);
-        gl.uniform1i(gl.getUniformLocation(this.program, "u_is_offset"), drawParams['u_is_offset'] ? 1 : 0);
-        gl.uniform3fv(gl.getUniformLocation(this.program, "u_pixels_per_degree"), drawParams['u_pixels_per_degree']);
-        gl.uniform3fv(gl.getUniformLocation(this.program, "u_pixels_per_degree2"), drawParams['u_pixels_per_degree2']);
-        gl.uniform3fv(gl.getUniformLocation(this.program, "u_pixels_per_meter"), drawParams['u_pixels_per_meter']);
-        gl.uniform2fv(gl.getUniformLocation(this.program, "u_viewport_center"), drawParams['u_viewport_center']);
-        gl.uniform4fv(gl.getUniformLocation(this.program, "u_viewport_center_projection"), drawParams['u_viewport_center_projection']);
+        gl.uniform1f(gl.getUniformLocation(program, "u_project_scale"), drawParams['u_project_scale']);
+        gl.uniform1i(gl.getUniformLocation(program, "u_is_offset"), drawParams['u_is_offset'] ? 1 : 0);
+        gl.uniform3fv(gl.getUniformLocation(program, "u_pixels_per_degree"), drawParams['u_pixels_per_degree']);
+        gl.uniform3fv(gl.getUniformLocation(program, "u_pixels_per_degree2"), drawParams['u_pixels_per_degree2']);
+        gl.uniform3fv(gl.getUniformLocation(program, "u_pixels_per_meter"), drawParams['u_pixels_per_meter']);
+        gl.uniform2fv(gl.getUniformLocation(program, "u_viewport_center"), drawParams['u_viewport_center']);
+        gl.uniform4fv(gl.getUniformLocation(program, "u_viewport_center_projection"), drawParams['u_viewport_center_projection']);
 
     }
 
