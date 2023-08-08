@@ -208,6 +208,62 @@ class CustomXyzLayer {
 
                 //掩膜处理
 
+                const maskVertexSource = "" +
+                    "uniform mat4 u_matrix;" +
+                    "attribute vec2 a_pos;" +
+
+                    "const float TILE_SIZE = 512.0;" +
+                    "const float PI = 3.1415926536;" +
+                    "const float WORLD_SCALE = TILE_SIZE / (PI * 2.0);" +
+
+                    "uniform float u_project_scale;" +
+                    "uniform bool u_is_offset;" +
+                    "uniform vec3 u_pixels_per_degree;" +
+                    "uniform vec3 u_pixels_per_degree2;" +
+                    "uniform vec3 u_pixels_per_meter;" +
+                    "uniform vec2 u_viewport_center;" +
+                    "uniform vec4 u_viewport_center_projection;" +
+                    "uniform vec2 u_viewport_size;" +
+                    "float project_scale(float meters) {" +
+                    "    return meters * u_pixels_per_meter.z;" +
+                    "}" +
+                    "vec3 project_scale(vec3 position) {" +
+                    "    return position * u_pixels_per_meter;" +
+                    "}" +
+                    "vec2 project_mercator(vec2 lnglat) {" +
+                    "    float x = lnglat.x;" +
+                    "    return vec2(" +
+                    "    radians(x) + PI, PI - log(tan(PI * 0.25 + radians(lnglat.y) * 0.5))" +
+                    "    );" +
+                    "}" +
+                    "vec4 project_offset(vec4 offset) {" +
+                    "    float dy = offset.y;" +
+                    "    dy = clamp(dy, -1., 1.);" +
+                    "    vec3 pixels_per_unit = u_pixels_per_degree + u_pixels_per_degree2 * dy;" +
+                    "    return vec4(offset.xyz * pixels_per_unit, offset.w);" +
+                    "}" +
+                    "vec4 project_position(vec4 position) {" +
+                    "    if (u_is_offset) {" +
+                    "        float X = position.x - u_viewport_center.x;" +
+                    "        float Y = position.y - u_viewport_center.y;" +
+                    "        return project_offset(vec4(X, Y, position.z, position.w));" +
+                    "    }" +
+                    "    else {" +
+                    "        return vec4(" +
+                    "        project_mercator(position.xy) * WORLD_SCALE * u_project_scale, project_scale(position.z), position.w" +
+                    "        );" +
+                    "    }" +
+                    "}" +
+                    "vec4 project_to_clipping_space(vec3 position) {" +
+                    "    vec4 project_pos = project_position(vec4(position, 1.0));" +
+                    "    return u_matrix * project_pos + u_viewport_center_projection;" +
+                    "}" +
+
+                    "void main() {" +
+                    "   vec4 project_pos = project_position(vec4(a_pos, 0.0, 1.0));" +
+                    "   gl_Position = u_matrix * project_pos + u_viewport_center_projection;" +
+                    "}";
+
                 const maskFragmentSource = "" +
                     "void main() {" +
                     "    gl_FragColor = vec4(0.0, 1.0, 0.0, 0.0);" +
@@ -215,7 +271,7 @@ class CustomXyzLayer {
 
                 //初始化掩膜顶点着色器
                 const maskVertexShader = gl.createShader(gl.VERTEX_SHADER);
-                gl.shaderSource(maskVertexShader, vertexSource);
+                gl.shaderSource(maskVertexShader, maskVertexSource);
                 gl.compileShader(maskVertexShader);
                 //初始化掩膜片元着色器
                 const maskFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -287,7 +343,6 @@ class CustomXyzLayer {
                 }else{
                     this._renderTile(gl);
                 }
-
             },
         });
         map.add(this.layer);
@@ -301,19 +356,16 @@ class CustomXyzLayer {
         //应用着色程序
         //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
         gl.useProgram(this.maskProgram);
+        // 设置位置的顶点参数
+        this.setVertex(gl, this.maskProgram)
         for (const mask of this.maskCache) {
             gl.bindBuffer(gl.ARRAY_BUFFER, mask.vertexBuffer);
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, mask.indexBuffer);
             //激活顶点数据缓冲区
-            gl.vertexAttribPointer(this.mask_Pos as GLint, 2, gl.FLOAT, false,  mask.FSIZE * 2, 0);
+            gl.vertexAttribPointer(this.mask_Pos as GLint, 2, gl.FLOAT, false,  0, 0);
             gl.enableVertexAttribArray(this.mask_Pos as GLint);
-
-            // 设置位置的顶点参数
-            this.setVertex(gl, this.maskProgram)
             //绘制图形
             gl.drawElements(gl.TRIANGLES, mask.deviationLength, gl.UNSIGNED_INT, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         }
 
         // gl.drawElements(gl.TRIANGLES, this.maskCache.deviationLength, gl.UNSIGNED_INT, 0);
@@ -324,6 +376,8 @@ class CustomXyzLayer {
         //应用着色程序
         //必须写到这里，不能写到onAdd中，不然gl中的着色程序可能不是上面写的，会导致下面的变量获取不到
         gl.useProgram(this.program);
+        // 设置位置的顶点参数
+        this.setVertex(gl, this.program)
         for (const tile of this.showTiles) {
             if (!tile.isLoad) continue;
 
@@ -350,8 +404,6 @@ class CustomXyzLayer {
             gl.enableVertexAttribArray(this.a_Pos);
             gl.enableVertexAttribArray(this.a_TextCoord);
 
-            // 设置位置的顶点参数
-            this.setVertex(gl, this.program)
 
             //开启阿尔法混合，实现注记半透明效果
             gl.enable(gl.BLEND);
@@ -393,6 +445,7 @@ class CustomXyzLayer {
 
         const deep = this.getMaskDeep(mask);
         if(deep < 2 || deep>4){
+            // eslint-disable-next-line no-console
             console.warn('mask数据格式不正确')
             return;
         }
@@ -549,7 +602,9 @@ class CustomXyzLayer {
     pushTileCache(tile: TileType){
         const cacheSize = this.options.cacheSize as number;
         if(cacheSize > 0 && this.tileCache.length >= cacheSize){
-            this._destroyTile(this.tileCache[0]);
+            if(this.showTiles.findIndex(item => item.xyzKey === this.tileCache[0].xyzKey) < 0){
+                this._destroyTile(this.tileCache[0]);
+            }
             this.tileCache.splice(0, 1);
         }
         this.tileCache.push(tile);
