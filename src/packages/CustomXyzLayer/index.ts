@@ -501,6 +501,9 @@ class CustomXyzLayer {
     }
 
     update() {
+        if(!this.gl){
+            return;
+        }
         this.isReadRender = false;
         const gl = this.gl;
         const map = this.map;

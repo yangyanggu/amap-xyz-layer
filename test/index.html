@@ -28,6 +28,8 @@
       <button onclick="hideSatellite()">隐藏高德本身卫星地图</button>
       <button onclick="createGaode()">创建自定义高德本身卫星地图</button>
       <button onclick="destroyGaode()">销毁自定义高德本身卫星地图</button>
+      <button onclick="showGaode()">显示自定义高德本身卫星地图</button>
+      <button onclick="hideGaode()">隐藏自定义高德本身卫星地图</button>
       <button onclick="createTianditu()">创建天地图卫星地图</button>
       <button onclick="destroyTianditu()">销毁天地图卫星地图</button>
       <button onclick="createBaidu()">创建百度卫星地图</button>
@@ -89,6 +91,13 @@
         let index = layers.findIndex(item => item === gaodeLayer);
         layers.splice(index, 1);
         gaodeLayer = undefined;
+      }
+
+      function showGaode() {
+        gaodeLayer.show();
+      }
+      function hideGaode() {
+        gaodeLayer.hide();
       }
 
       let tiandituLayer;
