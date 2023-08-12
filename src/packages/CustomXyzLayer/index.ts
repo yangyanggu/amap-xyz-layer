@@ -235,6 +235,7 @@ class CustomXyzLayer {
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) {
                     return
                 }
+                this.customCoords.setCenter(this.center);
                 if (map.getView().type === '3D') {
                     this.isOrtho = false;
                     const {near, far, fov, up, lookAt, position} = this.customCoords.getCameraParams() as {
