@@ -58,7 +58,7 @@
         console.log('maskArea: ', maskArea)
         map = new AMap.Map('app', {
           center: center,
-          zoom: 10,
+          zoom: 5,
           viewMode: '3D',
           pitch: 0,
           showBuildingBlock: false,
@@ -82,8 +82,8 @@
           subdomains: ["1", "2", "3", "4"],
           zooms: [2,20],
           debug: false,
-          mask: maskArea,
-          altitude: 10000,
+          // mask: maskArea,
+          // altitude: 10000,
         })
         layers.push(gaodeLayer)
       }

@@ -623,11 +623,32 @@ class CustomXyzLayer {
         }
     }
 
+    deepFormatTileNumber(num: number, maxNum: number){
+        if(num>=0 && num<maxNum){
+            return num;
+        }
+        if(num>0 && num >= maxNum){
+            num = num - maxNum;
+        }else if(num < 0){
+            num = num + maxNum;
+        }
+        return this.deepFormatTileNumber(num, maxNum);
+    }
+
     //创建瓦片
     createTile(gl, xyz: XYZ) {
+        let zoom = Math.ceil(this.map.getZoom());
+        if(zoom > (this.options.tileMaxZoom as number)){
+            zoom = this.options.tileMaxZoom as number;
+        }
+        const maxTileNumber = Math.pow(2, zoom);
+        let x = xyz.x;
+        let y = xyz.y;
+        x = this.deepFormatTileNumber(x, maxTileNumber);
+        y = this.deepFormatTileNumber(y, maxTileNumber);
         const templateData = {
-            x: xyz.x,
-            y: xyz.y,
+            x,
+            y,
             z: xyz.z
         }
         if (this.options.subdomains) {
