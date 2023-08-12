@@ -24,7 +24,8 @@ export interface XyzLayerOptions{
     debug?: boolean
     mask?: MaskType
     cacheSize?: number
-    tileMaxZoom?: number
+    tileMaxZoom?: number // 瓦片在服务器的最大层级，当地图zoom超过该层级后直接使用该层级作为做大层级瓦片
+    altitude?: number // 瓦片海拔
 }
 
 interface XYZ {
@@ -95,9 +96,17 @@ class CustomXyzLayer {
 
     mask_Pos: GLint | undefined;
 
+    // 以下两个为透视投影使用矩阵
+    // 投影矩阵
     _projectionMatrix = new Matrix4()
-
+    // 视图矩阵
     _viewMatrix4 = new Matrix4();
+
+    // 正交投影使用
+    _mvpMatrix4 = new Matrix4();
+
+    // 是否是2D的正交投影
+    isOrtho = false;
 
     constructor(map: any, options: XyzLayerOptions) {
         if (!map) {
@@ -125,11 +134,17 @@ class CustomXyzLayer {
                 const vertexSource = "" +
                     "uniform mat4 u_ProjectionMatrix;" +
                     "uniform mat4 u_ViewMatrix4;" +
+                    "uniform mat4 u_MvpMatrix4;" +
+                    "uniform bool u_isOrtho;"+
                     "attribute vec2 a_pos;" +
                     "attribute vec2 a_TextCoord;" +
                     "varying vec2 v_TextCoord;" +
                     "void main() {" +
-                    "   gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
+                    "   if(u_isOrtho){"+
+                    "     gl_Position = u_MvpMatrix4 * vec4(a_pos,0.0, 1.0);" +
+                    "   }else{"+
+                    "     gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
+                    "   }"+
                     "   v_TextCoord = a_TextCoord;" +
                     "}";
 
@@ -165,10 +180,15 @@ class CustomXyzLayer {
                 const maskVertexSource = "" +
                     "uniform mat4 u_ProjectionMatrix;" +
                     "uniform mat4 u_ViewMatrix4;" +
+                    "uniform mat4 u_MvpMatrix4;" +
+                    "uniform bool u_isOrtho;"+
                     "attribute vec2 a_pos;" +
-                    "varying vec2 v_TextCoord;" +
                     "void main() {" +
-                    "   gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
+                    "   if(u_isOrtho){"+
+                    "     gl_Position = u_MvpMatrix4 * vec4(a_pos,0.0, 1.0);" +
+                    "   }else{"+
+                    "     gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
+                    "   }"+
                     "}";
 
                 const maskFragmentSource = "" +
@@ -215,19 +235,33 @@ class CustomXyzLayer {
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) {
                     return
                 }
-                const { near, far, fov, up, lookAt, position } =
-                    this.customCoords.getCameraParams();
-                this._viewMatrix4.lookAt({
-                    eye: position,
-                    center: lookAt,
-                    up
-                });
-                this._projectionMatrix.perspective({
-                    fovy: fov * Math.PI / 180,
-                    far,
-                    near,
-                    aspect: gl.drawingBufferWidth / gl.drawingBufferHeight
-                })
+                if (map.getView().type === '3D') {
+                    this.isOrtho = false;
+                    const {near, far, fov, up, lookAt, position} = this.customCoords.getCameraParams() as {
+                        near: number;
+                        far: number;
+                        fov: number;
+                        up: [number, number, number];
+                        lookAt: [number, number, number];
+                        position: [number, number, number]
+                    };
+                    this._viewMatrix4.lookAt({
+                        eye: position,
+                        center: lookAt,
+                        up
+                    }).translate([0,0,this.options.altitude as number]);
+                    this._projectionMatrix.perspective({
+                        fovy: fov * Math.PI / 180,
+                        far,
+                        near,
+                        aspect: gl.drawingBufferWidth / gl.drawingBufferHeight
+                    })
+                }else{
+                    this.isOrtho = true;
+                    const MVPMatrix = this.customCoords.getMVPMatrix();
+                    this._mvpMatrix4.copy(MVPMatrix);
+                }
+
                 if(this.maskCache.length > 0){
                     // 清除模板缓存
                     gl.clearStencil(0);
@@ -354,7 +388,8 @@ class CustomXyzLayer {
             tileType: 'xyz',
             debug: false,
             cacheSize: -1,
-            tileMaxZoom: 18
+            tileMaxZoom: 18,
+            altitude: 0
         }
     }
 
@@ -699,6 +734,8 @@ class CustomXyzLayer {
     setVertex(gl, program: any) {
         gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_ProjectionMatrix"), false, this._projectionMatrix.toArray());
         gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_ViewMatrix4"), false, this._viewMatrix4.toArray());
+        gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_MvpMatrix4"), false, this._mvpMatrix4.toArray());
+        gl.uniform1f(gl.getUniformLocation(program, "u_isOrtho"), this.isOrtho);
     }
 
     show(){
