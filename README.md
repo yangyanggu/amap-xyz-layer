@@ -102,19 +102,21 @@ map: 地图实例对象<br/>
 options: 自定义瓦片图层的参数 <br/>
 
 ###### options参数说明
-| 属性名        | 属性类型                                           | 属性描述                                                                                               |
-|------------|------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| url        | string                                         | 瓦片地址，支持 {s} {x} {y} {z}，示例：`http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}` |
-| subdomains | string[]                                       | 子域名数组，当url中设置{s}后，该属性必填                                                                            | 
-| tileType   | 'xyz' \| 'bd09'                                | 瓦片分割类型，默认是`xyz`，xyz代表瓦片是编号是从左上角开始，百度瓦片是由中间开始，所以需要区分普通瓦片还是百度                                        |
-| proj       | 'wgs84' \| 'gcj02' \| 'bd09'                   | 瓦片使用的坐标系，默认是`gcj02`                                                                                |
-| zooms      | [number,number]                                | 图层缩放等级范围，默认 [2, 18]                                                                                |
-| opacity    | number                                         | 图层透明度，默认为 1                                                                                        |
-| visible    | boolean                                        | 图层是否可见，默认为 true                                                                                    |
-| zIndex     | number                                         | 图层的层级，默认为 120                                                                                      | 
- | debug      | boolean                                        | 开启debug后瓦片上将显示瓦片编号                                                                                 |
-| mask       | number[][] \| number[][][]   \| number[][][][] | 瓦片掩膜，数据结构与AMap.Map的mask参数一致                                                                        |
-| cacheSize  | number                                         | 瓦片缓存数量，默认-1，不限制缓存瓦片数                                                                               |
+| 属性名         | 属性类型                                           | 属性描述                                                                                               |
+|-------------|------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| url         | string                                         | 瓦片地址，支持 {s} {x} {y} {z}，示例：`http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}` |
+| subdomains  | string[]                                       | 子域名数组，当url中设置{s}后，该属性必填                                                                            | 
+| tileType    | 'xyz' \| 'bd09'                                | 瓦片分割类型，默认是`xyz`，xyz代表瓦片是编号是从左上角开始，百度瓦片是由中间开始，所以需要区分普通瓦片还是百度                                        |
+| proj        | 'wgs84' \| 'gcj02' \| 'bd09'                   | 瓦片使用的坐标系，默认是`gcj02`                                                                                |
+| zooms       | [number,number]                                | 图层缩放等级范围，默认 [2, 18]                                                                                |
+| opacity     | number                                         | 图层透明度，默认为 1                                                                                        |
+| visible     | boolean                                        | 图层是否可见，默认为 true                                                                                    |
+| zIndex      | number                                         | 图层的层级，默认为 120                                                                                      | 
+ | debug       | boolean                                        | 开启debug后瓦片上将显示瓦片编号                                                                                 |
+| mask        | number[][] \| number[][][]   \| number[][][][] | 瓦片掩膜，数据结构与AMap.Map的mask参数一致                                                                        |
+| cacheSize   | number                                         | 瓦片缓存数量，默认-1，不限制缓存瓦片数                                                                               |
+| tileMaxZoom | number                                         | 瓦片在服务器的最大层级，当地图zoom超过该层级后直接使用该层级作为做大层级瓦片，默认18                                                      |
+| altitude    | number                                         | 加载的瓦片海拔，设置该值后，在3D模式下瓦片将浮空，默认：0                                                                     |
 
 ###### 成员函数
 
