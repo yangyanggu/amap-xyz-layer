@@ -1,7 +1,5 @@
-import WebMercatorViewport from 'viewport-mercator-project';
-import * as mat4 from 'gl-matrix/mat4';
-import * as vec4 from 'gl-matrix/vec4';
 import earcut from 'earcut';
+import {Matrix4} from "@math.gl/core";
 import {
     lonLatToTileNumbers, tileNumbersToLonLat,
     gcj02_To_gps84, gps84_To_gcj02,
@@ -9,7 +7,6 @@ import {
 } from '../support/coordConver'
 import TransformClassBaidu from '../support/transform-class-baidu'
 import {template} from '../support/Util.js'
-import {getDistanceScales, zoomToScale} from '../support/web-mercator.js';
 import type { ResultLngLat } from '../support/coordConver'
 
 // 掩膜数据结构
@@ -27,6 +24,7 @@ export interface XyzLayerOptions{
     debug?: boolean
     mask?: MaskType
     cacheSize?: number
+    tileMaxZoom?: number
 }
 
 interface XYZ {
@@ -97,6 +95,10 @@ class CustomXyzLayer {
 
     mask_Pos: GLint | undefined;
 
+    _projectionMatrix = new Matrix4()
+
+    _viewMatrix4 = new Matrix4();
+
     constructor(map: any, options: XyzLayerOptions) {
         if (!map) {
             throw new Error('请传入地图实例')
@@ -121,61 +123,13 @@ class CustomXyzLayer {
             init: (gl) => {
                 this.gl = gl;
                 const vertexSource = "" +
-                    "uniform mat4 u_matrix;" +
+                    "uniform mat4 u_ProjectionMatrix;" +
+                    "uniform mat4 u_ViewMatrix4;" +
                     "attribute vec2 a_pos;" +
                     "attribute vec2 a_TextCoord;" +
                     "varying vec2 v_TextCoord;" +
-
-                    "const float TILE_SIZE = 512.0;" +
-                    "const float PI = 3.1415926536;" +
-                    "const float WORLD_SCALE = TILE_SIZE / (PI * 2.0);" +
-
-                    "uniform float u_project_scale;" +
-                    "uniform bool u_is_offset;" +
-                    "uniform vec3 u_pixels_per_degree;" +
-                    "uniform vec3 u_pixels_per_degree2;" +
-                    "uniform vec3 u_pixels_per_meter;" +
-                    "uniform vec2 u_viewport_center;" +
-                    "uniform vec4 u_viewport_center_projection;" +
-                    "uniform vec2 u_viewport_size;" +
-                    "float project_scale(float meters) {" +
-                    "    return meters * u_pixels_per_meter.z;" +
-                    "}" +
-                    "vec3 project_scale(vec3 position) {" +
-                    "    return position * u_pixels_per_meter;" +
-                    "}" +
-                    "vec2 project_mercator(vec2 lnglat) {" +
-                    "    float x = lnglat.x;" +
-                    "    return vec2(" +
-                    "    radians(x) + PI, PI - log(tan(PI * 0.25 + radians(lnglat.y) * 0.5))" +
-                    "    );" +
-                    "}" +
-                    "vec4 project_offset(vec4 offset) {" +
-                    "    float dy = offset.y;" +
-                    "    dy = clamp(dy, -1., 1.);" +
-                    "    vec3 pixels_per_unit = u_pixels_per_degree + u_pixels_per_degree2 * dy;" +
-                    "    return vec4(offset.xyz * pixels_per_unit, offset.w);" +
-                    "}" +
-                    "vec4 project_position(vec4 position) {" +
-                    "    if (u_is_offset) {" +
-                    "        float X = position.x - u_viewport_center.x;" +
-                    "        float Y = position.y - u_viewport_center.y;" +
-                    "        return project_offset(vec4(X, Y, position.z, position.w));" +
-                    "    }" +
-                    "    else {" +
-                    "        return vec4(" +
-                    "        project_mercator(position.xy) * WORLD_SCALE * u_project_scale, project_scale(position.z), position.w" +
-                    "        );" +
-                    "    }" +
-                    "}" +
-                    "vec4 project_to_clipping_space(vec3 position) {" +
-                    "    vec4 project_pos = project_position(vec4(position, 1.0));" +
-                    "    return u_matrix * project_pos + u_viewport_center_projection;" +
-                    "}" +
-
                     "void main() {" +
-                    "   vec4 project_pos = project_position(vec4(a_pos, 0.0, 1.0));" +
-                    "   gl_Position = u_matrix * project_pos + u_viewport_center_projection;" +
+                    "   gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
                     "   v_TextCoord = a_TextCoord;" +
                     "}";
 
@@ -209,59 +163,12 @@ class CustomXyzLayer {
                 //掩膜处理
 
                 const maskVertexSource = "" +
-                    "uniform mat4 u_matrix;" +
+                    "uniform mat4 u_ProjectionMatrix;" +
+                    "uniform mat4 u_ViewMatrix4;" +
                     "attribute vec2 a_pos;" +
-
-                    "const float TILE_SIZE = 512.0;" +
-                    "const float PI = 3.1415926536;" +
-                    "const float WORLD_SCALE = TILE_SIZE / (PI * 2.0);" +
-
-                    "uniform float u_project_scale;" +
-                    "uniform bool u_is_offset;" +
-                    "uniform vec3 u_pixels_per_degree;" +
-                    "uniform vec3 u_pixels_per_degree2;" +
-                    "uniform vec3 u_pixels_per_meter;" +
-                    "uniform vec2 u_viewport_center;" +
-                    "uniform vec4 u_viewport_center_projection;" +
-                    "uniform vec2 u_viewport_size;" +
-                    "float project_scale(float meters) {" +
-                    "    return meters * u_pixels_per_meter.z;" +
-                    "}" +
-                    "vec3 project_scale(vec3 position) {" +
-                    "    return position * u_pixels_per_meter;" +
-                    "}" +
-                    "vec2 project_mercator(vec2 lnglat) {" +
-                    "    float x = lnglat.x;" +
-                    "    return vec2(" +
-                    "    radians(x) + PI, PI - log(tan(PI * 0.25 + radians(lnglat.y) * 0.5))" +
-                    "    );" +
-                    "}" +
-                    "vec4 project_offset(vec4 offset) {" +
-                    "    float dy = offset.y;" +
-                    "    dy = clamp(dy, -1., 1.);" +
-                    "    vec3 pixels_per_unit = u_pixels_per_degree + u_pixels_per_degree2 * dy;" +
-                    "    return vec4(offset.xyz * pixels_per_unit, offset.w);" +
-                    "}" +
-                    "vec4 project_position(vec4 position) {" +
-                    "    if (u_is_offset) {" +
-                    "        float X = position.x - u_viewport_center.x;" +
-                    "        float Y = position.y - u_viewport_center.y;" +
-                    "        return project_offset(vec4(X, Y, position.z, position.w));" +
-                    "    }" +
-                    "    else {" +
-                    "        return vec4(" +
-                    "        project_mercator(position.xy) * WORLD_SCALE * u_project_scale, project_scale(position.z), position.w" +
-                    "        );" +
-                    "    }" +
-                    "}" +
-                    "vec4 project_to_clipping_space(vec3 position) {" +
-                    "    vec4 project_pos = project_position(vec4(position, 1.0));" +
-                    "    return u_matrix * project_pos + u_viewport_center_projection;" +
-                    "}" +
-
+                    "varying vec2 v_TextCoord;" +
                     "void main() {" +
-                    "   vec4 project_pos = project_position(vec4(a_pos, 0.0, 1.0));" +
-                    "   gl_Position = u_matrix * project_pos + u_viewport_center_projection;" +
+                    "   gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
                     "}";
 
                 const maskFragmentSource = "" +
@@ -308,6 +215,19 @@ class CustomXyzLayer {
                 if (this.map.getZoom() < zooms[0] || this.map.getZoom() > zooms[1]) {
                     return
                 }
+                const { near, far, fov, up, lookAt, position } =
+                    this.customCoords.getCameraParams();
+                this._viewMatrix4.lookAt({
+                    eye: position,
+                    center: lookAt,
+                    up
+                });
+                this._projectionMatrix.perspective({
+                    fovy: fov * Math.PI / 180,
+                    far,
+                    near,
+                    aspect: gl.drawingBufferWidth / gl.drawingBufferHeight
+                })
                 if(this.maskCache.length > 0){
                     // 清除模板缓存
                     gl.clearStencil(0);
@@ -434,6 +354,7 @@ class CustomXyzLayer {
             tileType: 'xyz',
             debug: false,
             cacheSize: -1,
+            tileMaxZoom: 18
         }
     }
 
@@ -454,7 +375,8 @@ class CustomXyzLayer {
         }else if(deep === 3){
             mask = [mask] as any;
         }
-        for(const maskItem of mask as number[][][][]){
+        for(let maskItem of mask as number[][][][]){
+            maskItem = this._convertMaskLnglatToCoords(maskItem);
             const data = earcut.flatten(maskItem);
             // console.log('earcut: ', earcut)
             const triangles = earcut(data.vertices, data.holes, data.dimensions);
@@ -490,15 +412,21 @@ class CustomXyzLayer {
         return this.getMaskDeep(mask[0], deepNumber+1);
     }
 
-    _convertLnglatToCoords(mask: any){
+    _convertMaskLnglatToCoords(mask: any){
         if(!mask || mask.length === 0){
             return mask;
         }
         if(typeof mask[0] === 'number'){
-            return this.map.lngLatToCoords([mask[0], mask[1]]);
+            return this._convertLnglatToCoords([mask[0], mask[1]]);
         }
-        return mask.map(item => this._convertLnglatToCoords(item))
+        return mask.map(item => this._convertMaskLnglatToCoords(item))
     }
+
+    _convertLnglatToCoords(lnglat: [number, number]) {
+        this.customCoords.setCenter(this.center);
+        return this.customCoords.lngLatsToCoords([lnglat])[0];
+    }
+
 
     update() {
         if(!this.gl){
@@ -508,7 +436,10 @@ class CustomXyzLayer {
         const gl = this.gl;
         const map = this.map;
         const center = map.getCenter();
-        const zoom = Math.ceil(map.getZoom());
+        let zoom = Math.ceil(map.getZoom());
+        if(zoom > (this.options.tileMaxZoom as number)){
+            zoom = this.options.tileMaxZoom as number;
+        }
         const bounds = map.getBounds();
         let minTile: [number, number],
             maxTile: [number, number];
@@ -618,11 +549,21 @@ class CustomXyzLayer {
         const key = this.createTileKey(xyz.x + xPlus, xyz.y + yPlus, xyz.z)
         if (!this.gridCache[key]) {
             if (this.options.proj === 'wgs84') {
-                this.gridCache[key] = gps84_To_gcj02(...tileNumbersToLonLat(xyz.x + xPlus, xyz.y + yPlus, xyz.z))
+                const lnglat = gps84_To_gcj02(...tileNumbersToLonLat(xyz.x + xPlus, xyz.y + yPlus, xyz.z));
+                const result = this._convertLnglatToCoords([lnglat.lng, lnglat.lat]);
+                this.gridCache[key] = {
+                    lng: result[0],
+                    lat: result[1]
+                }
             } else if (this.options.tileType === 'bd09') {
-                this.gridCache[key] = bd09_To_gcj02(...this.transformBaidu.pixelToLnglat(0, 0, xyz.x + xPlus, xyz.y + yPlus, xyz.z))
+                const lnglat = bd09_To_gcj02(...this.transformBaidu.pixelToLnglat(0, 0, xyz.x + xPlus, xyz.y + yPlus, xyz.z));
+                const result = this._convertLnglatToCoords([lnglat.lng, lnglat.lat]);
+                this.gridCache[key] = {
+                    lng: result[0],
+                    lat: result[1]
+                }
             } else {
-                const lnglat = tileNumbersToLonLat(xyz.x + xPlus, xyz.y + yPlus, xyz.z);
+                const lnglat = this._convertLnglatToCoords(tileNumbersToLonLat(xyz.x + xPlus, xyz.y + yPlus, xyz.z));
                 this.gridCache[key] = {
                     lng: lnglat[0],
                     lat: lnglat[1]
@@ -687,6 +628,7 @@ class CustomXyzLayer {
                 rightTop.lng, rightTop.lat, 1.0, 1.0,
                 rightBottom.lng, rightBottom.lat, 1.0, 0.0
         ])
+        // console.log('attrData: ', attrData)
         // var attrData = new Float32Array([
         //     116.38967958133532, 39.90811009556515, 0.0, 1.0,
         //     116.38967958133532, 39.90294980726742, 0.0, 0.0,
@@ -755,85 +697,8 @@ class CustomXyzLayer {
     // 设置位置的顶点参数
     //参考：https://github.com/xiaoiver/custom-mapbox-layer/blob/master/src/layers/PointCloudLayer2.ts
     setVertex(gl, program: any) {
-        const currentZoomLevel = this.map.getZoom() - 1;
-        let bearing = this.map.getRotation();
-        bearing = 360-bearing; //适配旋转
-        const pitch = this.map.getPitch();
-        const center = this.map.getCenter();
-
-        const viewport = new WebMercatorViewport({
-            // width: gl.drawingBufferWidth*1.11,
-            // height: gl.drawingBufferHeight*1.11,
-            width: gl.drawingBufferWidth,
-            height: gl.drawingBufferHeight,
-
-            longitude: center.lng,
-            latitude: center.lat,
-            zoom: currentZoomLevel,
-            pitch,
-            bearing,
-        });
-
-        const {viewProjectionMatrix, projectionMatrix, viewMatrix, viewMatrixUncentered} = viewport;
-
-        const drawParams = {
-            'u_matrix': viewProjectionMatrix,
-            'u_is_offset': false,
-            'u_pixels_per_degree': [0, 0, 0],
-            'u_pixels_per_degree2': [0, 0, 0],
-            'u_viewport_center': [0, 0],
-            'u_pixels_per_meter': [0, 0, 0],
-            'u_project_scale': zoomToScale(currentZoomLevel),
-            'u_viewport_center_projection': [0, 0, 0, 0],
-        };
-
-        if (currentZoomLevel > 12) {
-            const {pixelsPerDegree, pixelsPerDegree2} = getDistanceScales({
-                longitude: center.lng,
-                latitude: center.lat,
-                zoom: currentZoomLevel,
-                highPrecision: true
-            });
-
-            const positionPixels = viewport.projectFlat(
-                [Math.fround(center.lng), Math.fround(center.lat)],
-                Math.pow(2, currentZoomLevel)
-            );
-
-            const projectionCenter = vec4.transformMat4(
-                [],
-                [positionPixels[0], positionPixels[1], 0.0, 1.0],
-                viewProjectionMatrix
-            );
-
-            // Always apply uncentered projection matrix if available (shader adds center)
-            const viewMatrix2 = viewMatrixUncentered || viewMatrix;
-
-            // Zero out 4th coordinate ("after" model matrix) - avoids further translations
-            // viewMatrix = new Matrix4(viewMatrixUncentered || viewMatrix)
-            //   .multiplyRight(VECTOR_TO_POINT_MATRIX);
-            let viewProjectionMatrix2 = mat4.multiply([], projectionMatrix, viewMatrix2);
-            const VECTOR_TO_POINT_MATRIX = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
-            viewProjectionMatrix2 = mat4.multiply([], viewProjectionMatrix2, VECTOR_TO_POINT_MATRIX);
-
-            drawParams['u_matrix'] = viewProjectionMatrix2;
-            drawParams['u_is_offset'] = true;
-            drawParams['u_viewport_center'] = [Math.fround(center.lng), Math.fround(center.lat)];
-            drawParams['u_viewport_center_projection'] = projectionCenter;
-            drawParams['u_pixels_per_degree'] = pixelsPerDegree && pixelsPerDegree.map(p => Math.fround(p));
-            drawParams['u_pixels_per_degree2'] = pixelsPerDegree2 && pixelsPerDegree2.map(p => Math.fround(p));
-        }
-
-        gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_matrix"), false, drawParams['u_matrix']);
-
-        gl.uniform1f(gl.getUniformLocation(program, "u_project_scale"), drawParams['u_project_scale']);
-        gl.uniform1i(gl.getUniformLocation(program, "u_is_offset"), drawParams['u_is_offset'] ? 1 : 0);
-        gl.uniform3fv(gl.getUniformLocation(program, "u_pixels_per_degree"), drawParams['u_pixels_per_degree']);
-        gl.uniform3fv(gl.getUniformLocation(program, "u_pixels_per_degree2"), drawParams['u_pixels_per_degree2']);
-        gl.uniform3fv(gl.getUniformLocation(program, "u_pixels_per_meter"), drawParams['u_pixels_per_meter']);
-        gl.uniform2fv(gl.getUniformLocation(program, "u_viewport_center"), drawParams['u_viewport_center']);
-        gl.uniform4fv(gl.getUniformLocation(program, "u_viewport_center_projection"), drawParams['u_viewport_center_projection']);
-
+        gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_ProjectionMatrix"), false, this._projectionMatrix.toArray());
+        gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_ViewMatrix4"), false, this._viewMatrix4.toArray());
     }
 
     show(){

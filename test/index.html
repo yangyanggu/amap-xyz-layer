@@ -80,6 +80,7 @@
         gaodeLayer = new AMap.CustomXyzLayer(map, {
           url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
           subdomains: ["1", "2", "3", "4"],
+          zooms: [2,20],
           debug: false,
           mask: maskArea,
         })
