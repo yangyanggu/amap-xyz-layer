@@ -21,7 +21,7 @@ export default {
   input: 'src/index.ts',
   output: [
     {
-      file: './dist/index.js',
+      file: './dist/dist/index.js',
       format: 'umd',
       sourcemap: true,
       name: 'AMap',

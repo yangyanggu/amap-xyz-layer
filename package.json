@@ -1,6 +1,6 @@
 {
   "name": "@vuemap/amap-xyz-layer",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "高德地图 JSAPI v2.0 自定义瓦片图层，支持瓦片纠偏，支持海拔",
   "keywords": [
     "amap",
@@ -77,6 +77,7 @@
     "prettier": "^2.7.1",
     "rimraf": "3.0.2",
     "rollup": "^2.78.1",
+    "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-esbuild": "4.9.3",
     "rollup-plugin-filesize": "9.1.2",
     "rollup-plugin-serve": "^2.0.1",
