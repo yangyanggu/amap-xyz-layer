@@ -48,6 +48,9 @@ interface TileType {
     TextCoordParam?: PosParamType
     texture?: WebGLTexture
     isLoad: boolean
+    url: string
+    image?: HTMLImageElement
+    imageCanceled: boolean
 }
 
 // mask缓存数据
@@ -222,6 +225,7 @@ class CustomXyzLayer {
                     }
                 }
                 map.on('dragging', this.mapCallback)
+                map.on('moveend', this.mapCallback)
                 map.on('zoomchange', this.mapCallback)
                 map.on('rotatechange', this.mapCallback)
                 this._createMask(this.options.mask);
@@ -545,6 +549,7 @@ class CustomXyzLayer {
         currentTiles.sort((a, b) => {
             return this.tileDistance(a, centerTile) - this.tileDistance(b, centerTile);
         });
+        this._cancelOutViewImage(currentTiles);
         //加载瓦片
         this._clearShowTile();
         for (const xyz of currentTiles) {
@@ -552,6 +557,10 @@ class CustomXyzLayer {
             const tileKey = this.createTileKey(xyz);
             const tileCache = this.getTileCache(tileKey)
             if (tileCache) {
+                if(!tileCache.isLoad && tileCache.image && tileCache.imageCanceled){
+                    tileCache.image.src = tileCache.url;
+                    tileCache.imageCanceled = false;
+                }
                 this.showTiles.push(tileCache);
             } else {
                 const tile = this.createTile(gl, xyz)
@@ -563,6 +572,18 @@ class CustomXyzLayer {
             this.showTiles.unshift(this.showTiles[0]);
         }
         this.isReadRender = true;
+    }
+
+    _cancelOutViewImage(currentTiles: XYZ[]){
+        this.tileCache.forEach(tile => {
+            const index = currentTiles.findIndex(xyz => this.createTileKey(xyz) === tile.xyzKey)
+            if(index === -1 && !tile.isLoad){
+                if(tile.image){
+                    tile.image.src = ''
+                    tile.imageCanceled = true;
+                }
+            }
+        })
     }
 
     getTileCache(key: string){
@@ -661,7 +682,9 @@ class CustomXyzLayer {
         const tile: TileType = {
             xyz,
             xyzKey: this.createTileKey(xyz),
-            isLoad: false
+            isLoad: false,
+            url: _url,
+            imageCanceled: false
         };
 
         //瓦片编号转经纬度，并进行偏移
@@ -747,7 +770,7 @@ class CustomXyzLayer {
         };
         img.crossOrigin = 'anonymous';
         img.src = _url;
-
+        tile.image = img;
         return tile;
     }
 
@@ -850,6 +873,7 @@ class CustomXyzLayer {
         this.isLayerShow = false;
         this.map.remove(this.layer);
         this.map.off('dragging', this.mapCallback);
+        this.map.off('moveend', this.mapCallback)
         this.map.off('zoomchange', this.mapCallback);
         this.map.off('rotatechange', this.mapCallback);
         this._destroyMaskCache();
