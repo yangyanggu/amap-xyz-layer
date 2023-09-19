@@ -78,7 +78,7 @@
       const altitude = 10000;
       let gaodeLayer
       function createGaode(){
-        const loca = new Loca.Container({
+        /*const loca = new Loca.Container({
           map,
         });
 
@@ -124,13 +124,14 @@
             return '#00C6DA'
           }
         })
-        loca.add(pl);
+        loca.add(pl);*/
         gaodeLayer = new AMap.CustomXyzLayer(map, {
           url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
           subdomains: ["1", "2", "3", "4"],
           zooms: [2,20],
           zIndex: 10000,
           debug: false,
+          // cacheSize: 256,
           // mask: maskArea,
           // altitude: altitude,
         })

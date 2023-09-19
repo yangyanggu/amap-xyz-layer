@@ -1,6 +1,6 @@
 {
   "name": "@vuemap/amap-xyz-layer",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "高德地图 JSAPI v2.0 自定义瓦片图层，支持瓦片纠偏，支持海拔",
   "keywords": [
     "amap",

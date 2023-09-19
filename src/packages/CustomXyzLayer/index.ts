@@ -392,7 +392,7 @@ class CustomXyzLayer {
             proj: 'gcj02',
             tileType: 'xyz',
             debug: false,
-            cacheSize: -1,
+            cacheSize: 512,
             tileMaxZoom: 18,
             altitude: 0
         }
@@ -765,8 +765,9 @@ class CustomXyzLayer {
             }
 
             tile.isLoad = true;
-
-            this.map.render()  //主动让地图重绘
+            if(this.showTiles.findIndex(item => item === tile) >= 0){
+                this.map.render()  //主动让地图重绘
+            }
         };
         img.crossOrigin = 'anonymous';
         img.src = _url;
