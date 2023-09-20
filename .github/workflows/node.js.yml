@@ -4,10 +4,7 @@
 name: Node.js CI
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,13 +13,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - uses: pnpm/action-setup@646cdf48217256a3d0b80361c5a50727664284f2
+      with:
+        version: 8.6.0
+
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
-        node-version: '18.x'
-        cache: 'npm'
-    - run: npm i -d
-    - run: npm run build
+        node-version: '18'
+        cache: 'pnpm'
+
+    - name: Build
+      run: |
+        pnpm install --no-frozen-lockfile
+        pnpm run build
     - name: Upload Artifact
       uses: actions/upload-pages-artifact@v2
       with:
