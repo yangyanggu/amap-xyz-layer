@@ -126,7 +126,7 @@
         })
         loca.add(pl);*/
         gaodeLayer = new AMap.CustomXyzLayer(map, {
-          url: 'http://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+          url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
           subdomains: ["1", "2", "3", "4"],
           zooms: [2,20],
           zIndex: 10000,
@@ -155,7 +155,7 @@
       let tiandituLayer;
       function createTianditu(){
         tiandituLayer = new AMap.CustomXyzLayer(map, {
-          url: 'http://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=4c02b2e99dd269d7b8cbde766a0bb7ac',
+          url: 'https://t{s}.tianditu.com/DataServer?T=img_w&X={x}&Y={y}&L={z}&tk=4c02b2e99dd269d7b8cbde766a0bb7ac',
           subdomains: ["1", "2", "3", "4"],
           proj: 'wgs84'
         })
