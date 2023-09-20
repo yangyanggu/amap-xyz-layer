@@ -26,12 +26,12 @@ jobs:
     - name: Build
       run: |
         pnpm install --no-frozen-lockfile
-        pnpm run build
+        pnpm run docs
     - name: Upload Artifact
       uses: actions/upload-pages-artifact@v2
       with:
         # upload entire directory
-        path: '.'
+        path: './test'
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v2
