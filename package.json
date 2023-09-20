@@ -32,6 +32,8 @@
   "scripts": {
     "build": "npm run clean:dist && cross-env NODE_ENV=production rollup -c rollup.config.js && cross-env NODE_ENV=production rollup -c rollup.umd.config.js",
     "dev": "npm run clean:dist && cross-env NODE_ENV=development rollup -c rollup.umd.config.js -w",
+    "docs": "npm run clean:docs:dist && cross-env NODE_ENV=production BUILD_MODE=demo rollup -c rollup.umd.config.js",
+    "clean:docs:dist": "rimraf test/dist",
     "clean:dist": "rimraf dist",
     "lint": "eslint --fix --ext .js,.vue src/",
     "prettier": "prettier --write src/"
