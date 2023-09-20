@@ -17,11 +17,15 @@ function isProd(){
   return process.env.NODE_ENV === 'production';
 }
 
+function isDemo(){
+  return process.env.BUILD_MODE === 'demo';
+}
+
 export default {
   input: 'src/index.ts',
   output: [
     {
-      file: './dist/dist/index.js',
+      file: isDemo() ? './test/dist/index.js' : './dist/dist/index.js',
       format: 'umd',
       sourcemap: true,
       name: 'AMap',
