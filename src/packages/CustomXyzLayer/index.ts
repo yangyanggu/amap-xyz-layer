@@ -51,6 +51,7 @@ interface TileType {
     url: string
     image?: HTMLImageElement
     imageCanceled: boolean
+    imageError?: boolean
 }
 
 // mask缓存数据
@@ -338,7 +339,7 @@ class CustomXyzLayer {
         // 设置位置的顶点参数
         this.setVertex(gl, this.program)
         for (const tile of this.showTiles) {
-            if (!tile.isLoad) continue;
+            if (!tile.isLoad || tile.imageError) continue;
 
             //向target绑定纹理对象
             gl.bindTexture(gl.TEXTURE_2D, tile.texture as WebGLTexture);
@@ -557,6 +558,9 @@ class CustomXyzLayer {
             const tileKey = this.createTileKey(xyz);
             const tileCache = this.getTileCache(tileKey)
             if (tileCache) {
+                if(tileCache.imageError){
+                    continue
+                }
                 if(!tileCache.isLoad && tileCache.image && tileCache.imageCanceled){
                     tileCache.image.src = tileCache.url;
                     tileCache.imageCanceled = false;
@@ -769,6 +773,11 @@ class CustomXyzLayer {
                 this.map.render()  //主动让地图重绘
             }
         };
+        img.onerror = () => {
+            if(!tile.imageCanceled){
+                tile.imageError = true
+            }
+        }
         img.crossOrigin = 'anonymous';
         img.src = _url;
         tile.image = img;
