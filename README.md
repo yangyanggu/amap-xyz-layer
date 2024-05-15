@@ -1,7 +1,7 @@
 # @vuemap/amap-xyz-layer
 [![npm (tag)](https://img.shields.io/npm/v/@vuemap/amap-xyz-layer)](https://www.npmjs.org/package/@vuemap/amap-xyz-layer)
 [![NPM downloads](http://img.shields.io/npm/dm/@vuemap/amap-xyz-layer.svg)](https://npmjs.org/package/@vuemap/amap-xyz-layer)
-![JS gzip size](http://img.badgesize.io/https://unpkg.com/@vuemap/amap-xyz-layer/dist/index.js?compression=gzip&label=gzip%20size:%20JS)
+![JS gzip size](https://img.shields.io/bundlephobia/minzip/%40vuemap/amap-xyz-layer/latest)
 [![NPM](https://img.shields.io/npm/l/@vuemap/amap-xyz-layer)](https://github.com/yangyanggu/amap-xyz-layer)
 [![star](https://badgen.net/github/stars/yangyanggu/amap-xyz-layer)](https://github.com/yangyanggu/amap-xyz-layer)
 

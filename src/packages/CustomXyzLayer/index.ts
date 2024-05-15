@@ -135,31 +135,35 @@ class CustomXyzLayer {
             // 初始化的操作，创建图层过程中执行一次。
             init: (gl) => {
                 this.gl = gl;
-                const vertexSource = "" +
-                    "uniform mat4 u_ProjectionMatrix;" +
-                    "uniform mat4 u_ViewMatrix4;" +
-                    "uniform mat4 u_MvpMatrix4;" +
-                    "uniform bool u_isOrtho;"+
-                    "attribute vec2 a_pos;" +
-                    "attribute vec2 a_TextCoord;" +
-                    "varying vec2 v_TextCoord;" +
-                    "void main() {" +
-                    "   if(u_isOrtho){"+
-                    "     gl_Position = u_MvpMatrix4 * vec4(a_pos,0.0, 1.0);" +
-                    "   }else{"+
-                    "     gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);" +
-                    "   }"+
-                    "   v_TextCoord = a_TextCoord;" +
-                    "}";
+                const vertexSource = `
+                    uniform mat4 u_ProjectionMatrix;
+                    uniform mat4 u_ViewMatrix4;
+                    uniform mat4 u_MvpMatrix4;
+                    uniform bool u_isOrtho;
+                    attribute vec2 a_pos;
+                    attribute vec2 a_TextCoord;
+                    varying vec2 v_TextCoord;
+                    void main() {
+                       if(u_isOrtho){
+                         gl_Position = u_MvpMatrix4 * vec4(a_pos,0.0, 1.0);
+                       }else{
+                         gl_Position = u_ProjectionMatrix * u_ViewMatrix4 * vec4(a_pos,0.0, 1.0);
+                       }
+                       v_TextCoord = a_TextCoord;
+                    }`;
 
-                const fragmentSource = "" +
-                    "precision mediump float;" +
-                    "uniform sampler2D u_Sampler; " +
-                    "varying vec2 v_TextCoord; " +
-                    "void main() {" +
-                    "   gl_FragColor = texture2D(u_Sampler, v_TextCoord);" +
-                    // "    gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);" +
-                    "}";
+                const fragmentSource = `
+                    precision mediump float;
+                    uniform sampler2D u_Sampler;
+                    uniform bool u_isFirst;
+                    varying vec2 v_TextCoord;
+                    void main() {
+                       if(u_isFirst){
+                         gl_FragColor = vec4(1.0, 0.0, 0.0, 0.0);
+                       }else{
+                         gl_FragColor = texture2D(u_Sampler, v_TextCoord);
+                       }
+                    }`;
 
                 //初始化顶点着色器
                 const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -338,6 +342,7 @@ class CustomXyzLayer {
         gl.useProgram(this.program);
         // 设置位置的顶点参数
         this.setVertex(gl, this.program)
+        let index = 0;
         for (const tile of this.showTiles) {
             if (!tile.isLoad || tile.imageError) continue;
 
@@ -355,7 +360,8 @@ class CustomXyzLayer {
             //将0号纹理传递给着色器
             gl.uniform1i(u_Sampler, 0);
 
-
+            // 设置是否是第一个瓦片，如果是第一个瓦片就显示为透明
+            gl.uniform1f(gl.getUniformLocation(this.program, "u_isFirst"), index === 0);
             gl.bindBuffer(gl.ARRAY_BUFFER, tile.buffer as WebGLBuffer);
             //设置从缓冲区获取顶点数据的规则
             gl.vertexAttribPointer(this.a_Pos, tile.PosParam?.size, gl.FLOAT, false, tile.PosParam?.stride, tile.PosParam?.offset);
@@ -371,6 +377,8 @@ class CustomXyzLayer {
 
             //绘制图形
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+            index++;
         }
     }
 
@@ -756,7 +764,7 @@ class CustomXyzLayer {
                 canvas.height = 256;
                 const cxt = canvas.getContext('2d') as CanvasRenderingContext2D;
                 cxt.drawImage(img,0,0)
-                cxt.font = "15px Verdana";
+                cxt.font = "25px Verdana";
                 cxt.fillStyle = "#ff0000";
                 cxt.strokeStyle = "#FF0000";
                 cxt.strokeRect(0, 0, 256, 256);

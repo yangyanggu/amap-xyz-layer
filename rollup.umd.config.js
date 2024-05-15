@@ -73,6 +73,7 @@ export default {
     // 开发模式开启静态服务器
     !isProd() && serve({
       open: true,
+      host: '127.0.0.1',
       contentBase: ['./'],
       openPage: '/test/index.html'
     })
