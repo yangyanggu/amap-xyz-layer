@@ -5,6 +5,8 @@
 [![NPM](https://img.shields.io/npm/l/@vuemap/amap-xyz-layer)](https://github.com/yangyanggu/amap-xyz-layer)
 [![star](https://badgen.net/github/stars/yangyanggu/amap-xyz-layer)](https://github.com/yangyanggu/amap-xyz-layer)
 
+> **如果出现加载瓦片后地图上部分图层或者矢量图形不显示，请调整纠偏图层的zIndex值，默认值是120，超过了很多图层层级**
+
 ### 示例
 [codepen示例](https://codepen.io/yangyanggu/pen/vYQQwBO)
 
