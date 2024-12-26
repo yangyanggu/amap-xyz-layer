@@ -18,7 +18,7 @@ function isProd(){
 }
 
 function isDemo(){
-  return process.env.BUILD_MODE === 'demo';
+  return process.env.NODE_ENV === 'development';
 }
 
 export default {

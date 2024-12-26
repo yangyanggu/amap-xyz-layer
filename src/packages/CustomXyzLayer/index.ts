@@ -778,7 +778,7 @@ class CustomXyzLayer {
 
             tile.isLoad = true;
             if(this.showTiles.findIndex(item => item === tile) >= 0){
-                this.map.render()  //主动让地图重绘
+                this.requestRender()  //主动让地图重绘
             }
         };
         img.onerror = () => {
@@ -799,6 +799,12 @@ class CustomXyzLayer {
         gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_ViewMatrix4"), false, this._viewMatrix4.toArray());
         gl.uniformMatrix4fv(gl.getUniformLocation(program, "u_MvpMatrix4"), false, this._mvpMatrix4.toArray());
         gl.uniform1f(gl.getUniformLocation(program, "u_isOrtho"), this.isOrtho);
+    }
+    requestRender(){
+        if(this.map){
+            this.map.getContext().setDirty()
+            this.map.render();
+        }
     }
 
     show(){
@@ -843,7 +849,7 @@ class CustomXyzLayer {
         this._destroyMaskCache();
         this._createMask(mask);
         this.options.mask = mask;
-        this.map.render();
+        this.requestRender();
     }
 
     getMask() {
