@@ -271,7 +271,7 @@ class CustomXyzLayer {
                     const MVPMatrix = this.customCoords.getMVPMatrix();
                     this._mvpMatrix4.copy(MVPMatrix);
                 }
-
+                this.reset(gl)
                 if(this.maskCache.length > 0){
                     // 清除模板缓存
                     gl.clearStencil(0);
@@ -307,6 +307,7 @@ class CustomXyzLayer {
                 }else{
                     this._renderTile(gl);
                 }
+                this.reset(gl)
             },
         });
         map.add(this.layer);
@@ -380,6 +381,54 @@ class CustomXyzLayer {
 
             index++;
         }
+    }
+
+     reset(gl: any) {
+
+        // reset state
+
+        gl.disable( gl.BLEND );
+        gl.disable( gl.CULL_FACE );
+        gl.disable( gl.DEPTH_TEST );
+        gl.disable( gl.POLYGON_OFFSET_FILL );
+        gl.disable( gl.SCISSOR_TEST );
+        gl.disable( gl.STENCIL_TEST );
+        gl.disable( gl.SAMPLE_ALPHA_TO_COVERAGE );
+
+        gl.blendEquation( gl.FUNC_ADD );
+        gl.blendFunc( gl.ONE, gl.ZERO );
+        gl.blendFuncSeparate( gl.ONE, gl.ZERO, gl.ONE, gl.ZERO );
+
+        gl.colorMask( true, true, true, true );
+        gl.clearColor( 0, 0, 0, 0 );
+
+        gl.depthMask( true );
+        gl.depthFunc( gl.LESS );
+        gl.clearDepth( 1 );
+
+        gl.stencilMask( 0xffffffff );
+        gl.stencilFunc( gl.ALWAYS, 0, 0xffffffff );
+        gl.stencilOp( gl.KEEP, gl.KEEP, gl.KEEP );
+        gl.clearStencil( 0 );
+
+        gl.cullFace( gl.BACK );
+        gl.frontFace( gl.CCW );
+
+        gl.polygonOffset( 0, 0 );
+
+        gl.activeTexture( gl.TEXTURE0 );
+
+        gl.bindFramebuffer( gl.FRAMEBUFFER, null );
+
+
+        gl.useProgram( null );
+
+        gl.lineWidth( 1 );
+
+        gl.scissor( 0, 0, gl.canvas.width, gl.canvas.height );
+        gl.viewport( 0, 0, gl.canvas.width, gl.canvas.height );
+
+
     }
 
     validate(options: XyzLayerOptions) {
@@ -802,8 +851,8 @@ class CustomXyzLayer {
     }
     requestRender(){
         if(this.map){
-            this.map.getContext().setDirty()
-            this.map.render();
+            // this.map.getContext().setDirty()
+            this.map.setNeedUpdate(true);
         }
     }
 
