@@ -851,7 +851,7 @@ class CustomXyzLayer {
     }
     requestRender(){
         if(this.map){
-            // this.map.getContext().setDirty()
+            this.map.getContext().setDirty()
             this.map.setNeedUpdate(true);
         }
     }
